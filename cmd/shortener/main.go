@@ -8,7 +8,7 @@ import (
 )
 
 const hashLen int = 10
-const shortUrlDomain string = "http://localhost:8080/"
+const shortURLDomain string = "http://localhost:8080/"
 
 var urlStorage [][]string //слайс для хранения URL и их хешей, первый индекс - запись, второй: 0 - URL, 1 - хеш
 
@@ -21,13 +21,13 @@ func addURL(url []byte) []byte {
 	urlVar = append(urlVar, hashStr)
 	// ...и сохраним её в слайс строк
 	urlStorage = append(urlStorage, urlVar)
-	return []byte(shortUrlDomain + hashStr)
+	return []byte(shortURLDomain + hashStr)
 }
 
 // Генератор хеша. Использует константу hashLen для определения длины
 func getHash() string {
 	var letters = string("abcdefghijklmnopqrstuvwxyzABCDEFGHIJKLMNOPQRSTUVWXYZ") //словарик для генерации хешей
-	var b string = ""
+	var b = ""
 	for i := 0; i < hashLen; i++ {
 		b += string(letters[rand.Intn(len(letters))])
 	}
