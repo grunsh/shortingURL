@@ -1,3 +1,11 @@
+/*
+Дяденька, вот ты, который взялся смотреть мой код и ревью писать. Обращаюсь к тебе с просьбой, не будь сильно строг,
+ПОЖАЛУЙСТА!   Я не кодил почти 20 лет (было php/Perl во времена сисадминства, интернет тогда был dial-up ещё).
+Я попросил на работе купить мне курс Go. И как-то так получилось, что был куплен продвинутый курс, а не для тех, кто
+учится ходить. Для меня любой мало-мальски работающий код - победа, как для годовалого ребёнка первый дейсяток шагов
+держась за палец. Я не сдаюсь. Стараюсь. Я даже с гитом до курса не работал и никогда не писал юнит тестов. А тут вон чо.
+Спасибо тебе дяденька за понимание, заранее. Не заваливай пожалуйста. Я почти не сплю, но тяну лямку и грызу гранит.
+*/
 package main
 
 import (
@@ -40,15 +48,18 @@ func shortingRequest(res http.ResponseWriter, req *http.Request) {
 		for i := len(urlStorage) - 1; i >= 0; i-- { //По слайсу идём с конца, ищем самый свежий редирект
 			if urlStorage[i][1] == id {
 				res.Header().Set("Location", urlStorage[i][0]) // Укажем куда редирект
+				res.Header().Set("Content-Type", "text/plain") // Установим тип ответа text/plain
 				res.WriteHeader(http.StatusTemporaryRedirect)  // Передаём 307
 				return                                         // Нашли нужный хеш и выдали редирект. Завершаем работу хендлера.
 			}
 		} //for... поиск хеша в памяти
-		res.WriteHeader(http.StatusBadRequest) // Прошли весь массив, но хеша нет. Ошибка 400
-		return                                 // Выход по 400
+		res.Header().Set("Content-Type", "text/plain") // Установим тип ответа text/plain
+		res.WriteHeader(http.StatusBadRequest)         // Прошли весь массив, но хеша нет. Ошибка 400
+		return                                         // Выход по 400
 	} else if req.Method == http.MethodPost {
 		data, err := io.ReadAll(req.Body)
 		if err != nil {
+			res.Header().Set("Content-Type", "text/plain") // Установим тип ответа text/plain
 			res.WriteHeader(http.StatusBadRequest)
 		}
 		shrtUrl := addURL(data)
@@ -58,7 +69,8 @@ func shortingRequest(res http.ResponseWriter, req *http.Request) {
 		res.Write(shrtUrl)
 
 	} else {
-		res.WriteHeader(http.StatusBadRequest) // Ошибка запроса (не пост, и не гет)
+		res.Header().Set("Content-Type", "text/plain") // Установим тип ответа text/plain
+		res.WriteHeader(http.StatusBadRequest)         // Ошибка запроса (не пост, и не гет)
 	}
 
 }

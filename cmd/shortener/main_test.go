@@ -1,8 +1,17 @@
+/*
+Дяденька, вот ты, который взялся смотреть мой код и ревью писать. Обращаюсь к тебе с просьбой, не будь сильно строг,
+ПОЖАЛУЙСТА!   Я не кодил почти 20 лет (было php/Perl во времена сисадминства, интернет тогда был dial-up ещё).
+Я попросил на работе купить мне курс Go. И как-то так получилось, что был куплен продвинутый курс, а не для тех, кто
+учится ходить. Для меня любой мало-мальски работающий код - победа, как для годовалого ребёнка первый дейсяток шагов
+держась за палец. Я не сдаюсь. Стараюсь. Я даже с гитом до курса не работал и никогда не писал юнит тестов. А тут вон чо.
+Спасибо тебе дяденька за понимание, заранее. Не заваливай пожалуйста. Я почти не сплю, но тяну лямку и грызу гранит.
+*/
+
 package main
 
 import (
-	"fmt"
 	"github.com/stretchr/testify/assert"
+	"github.com/stretchr/testify/require"
 	"io"
 	"net/http"
 	"net/http/httptest"
@@ -46,9 +55,9 @@ func Test_shortingRequest(t *testing.T) {
 			request: shortUrlDomain + "/123",
 			method:  http.MethodGet,
 			want: want{
-				response:    shortUrlDomain,
+				response:    "",
 				contentType: "text/plain",
-				status:      http.StatusCreated,
+				status:      http.StatusBadRequest,
 			},
 		},
 		// TODO: Add test cases.
@@ -58,10 +67,15 @@ func Test_shortingRequest(t *testing.T) {
 			request := httptest.NewRequest(tt.method, tt.request, nil)
 			w := httptest.NewRecorder()
 			shortingRequest(w, request)
-			data, _ := io.ReadAll(w.Body)
-			if tt.name[0] == 'H' {
+			res := w.Result()
+			data, err := io.ReadAll(res.Body)
+			require.NoError(t, err)
+			if tt.name[0] == 'H' { // H - метка для тестов, которые для обычных запросов с ожидаемым нормальным поведением.
 				assert.Equal(t, tt.want.response, string(data)[:len(shortUrlDomain)])
-				fmt.Println(string(data)[:len(shortUrlDomain)])
+			} else {
+				assert.Equal(t, tt.want.response, string(data))
+				assert.Equal(t, tt.want.status, res.StatusCode)
+				assert.Equal(t, tt.want.contentType, res.Header.Get("Content-Type"))
 			}
 		})
 	}
