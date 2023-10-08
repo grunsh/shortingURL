@@ -34,7 +34,7 @@ func addURL(url []byte) []byte {
 // Генератор хеша. Использует константу hashLen для определения длины
 func getHash() string {
 	var letters = string("abcdefghijklmnopqrstuvwxyzABCDEFGHIJKLMNOPQRSTUVWXYZ") //словарик для генерации хешей
-	var b string = ""
+	var b = ""
 	for i := 0; i < hashLen; i++ {
 		b += string(letters[rand.Intn(len(letters))])
 	}
@@ -58,15 +58,16 @@ func shortingRequest(res http.ResponseWriter, req *http.Request) {
 		return                                         // Выход по 400
 	} else if req.Method == http.MethodPost {
 		data, err := io.ReadAll(req.Body)
+		defer req.Body.Close()
 		if err != nil {
 			res.Header().Set("Content-Type", "text/plain") // Установим тип ответа text/plain
 			res.WriteHeader(http.StatusBadRequest)
 		}
-		shrtUrl := addURL(data)
+		shrtURL := addURL(data)
 		res.WriteHeader(http.StatusCreated)
 		res.Header().Set("Content-Type", "text/plain") // Установим тип ответа text/plain
-		res.Header().Set("Content-Length", strconv.Itoa(len(shrtUrl)))
-		res.Write(shrtUrl)
+		res.Header().Set("Content-Length", strconv.Itoa(len(shrtURL)))
+		res.Write(shrtURL)
 
 	} else {
 		res.Header().Set("Content-Type", "text/plain") // Установим тип ответа text/plain
