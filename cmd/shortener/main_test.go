@@ -35,7 +35,7 @@ func Test_shortingRequest(t *testing.T) {
 			request: "https://www.yandex.ru/",
 			method:  http.MethodPost,
 			want: want{
-				response:    shortUrlDomain,
+				response:    shortURLDomain,
 				contentType: "text/plain",
 				status:      http.StatusCreated,
 			},
@@ -52,7 +52,7 @@ func Test_shortingRequest(t *testing.T) {
 		},
 		{
 			name:    "hash которого нет",
-			request: shortUrlDomain + "/123",
+			request: shortURLDomain + "/123",
 			method:  http.MethodGet,
 			want: want{
 				response:    "",
@@ -71,7 +71,7 @@ func Test_shortingRequest(t *testing.T) {
 			data, err := io.ReadAll(res.Body)
 			require.NoError(t, err)
 			if tt.name[0] == 'H' { // H - метка для тестов, которые для обычных запросов с ожидаемым нормальным поведением.
-				assert.Equal(t, tt.want.response, string(data)[:len(shortUrlDomain)])
+				assert.Equal(t, tt.want.response, string(data)[:len(shortURLDomain)])
 			} else {
 				assert.Equal(t, tt.want.response, string(data))
 				assert.Equal(t, tt.want.status, res.StatusCode)
