@@ -19,8 +19,7 @@ func addURL(url []byte) []byte {
 	// Сформируем слайс-строку в слайс урлов. Колонка 0 - сокращённый URL, 1 - хеш
 	urlVar = append(urlVar, string(url))
 	urlVar = append(urlVar, hashStr)
-	// ...и сохраним её в слайс строк
-	urlStorage = append(urlStorage, urlVar)
+	urlStorage = append(urlStorage, urlVar) // ...и сохраним её в слайс строк
 	return []byte(shortUrlDomain + hashStr)
 }
 
@@ -44,7 +43,7 @@ func shortingRequest(res http.ResponseWriter, req *http.Request) {
 				res.WriteHeader(http.StatusTemporaryRedirect)  // Передаём 307
 				return                                         // Нашли нужный хеш и выдали редирект. Завершаем работу хендлера.
 			}
-		} //for...
+		} //for... поиск хеша в памяти
 		res.WriteHeader(http.StatusBadRequest) // Прошли весь массив, но хеша нет. Ошибка 400
 		return                                 // Выход по 400
 	} else if req.Method == http.MethodPost {
