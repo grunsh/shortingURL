@@ -65,10 +65,6 @@ func shortingRequest(res http.ResponseWriter, req *http.Request) {
 
 }
 
-func returnRedirect(res http.ResponseWriter, req *http.Request) {
-	res.Write([]byte("Это страница /api."))
-}
-
 func main() {
 	shorting := http.NewServeMux()
 	shorting.HandleFunc(`/`, shortingRequest)
