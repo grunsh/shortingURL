@@ -44,7 +44,6 @@ func getHash() string {
 // Хендлер / для сокращения URL. На входе принимается URL как text/plain
 func shortingRequest(res http.ResponseWriter, req *http.Request) {
 	if req.Method == http.MethodGet { // Если GET / , то вернём редирект и сокращённый URL
-		defer req.Body.Close()
 		id := req.URL.Path[1:]                      // Откусываем / и записываем id
 		for i := len(urlStorage) - 1; i >= 0; i-- { //По слайсу идём с конца, ищем самый свежий редирект
 			if urlStorage[i][1] == id {
@@ -59,9 +58,11 @@ func shortingRequest(res http.ResponseWriter, req *http.Request) {
 		return                                         // Выход по 400
 	} else if req.Method == http.MethodPost {
 		data, err := io.ReadAll(req.Body)
+		req.Body.Close()
 		if err != nil {
 			res.Header().Set("Content-Type", "text/plain") // Установим тип ответа text/plain
 			res.WriteHeader(http.StatusBadRequest)
+			return // Выход по 400
 		}
 		shrtURL := addURL(data)
 		res.Header().Set("Content-Type", "text/plain") // Установим тип ответа text/plain
