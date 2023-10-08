@@ -68,6 +68,7 @@ func Test_shortingRequest(t *testing.T) {
 			w := httptest.NewRecorder()
 			shortingRequest(w, request)
 			res := w.Result()
+			res.Body.Close()
 			data, err := io.ReadAll(res.Body)
 			require.NoError(t, err)
 			if tt.name[0] == 'H' { // H - метка для тестов, которые для обычных запросов с ожидаемым нормальным поведением.
