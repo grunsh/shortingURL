@@ -54,7 +54,7 @@ func shortingRequest(res http.ResponseWriter, req *http.Request) {
 			}
 		} //for... поиск хеша в памяти
 		res.Header().Set("Content-Type", "text/plain") // Установим тип ответа text/plain
-		res.WriteHeader(http.StatusBadRequest)         // Прошли весь массив, но хеша нет. Ошибка 400
+		res.WriteHeader(http.StatusBadRequest)         // Прошли весь массив, но хеша нет.
 		return                                         // Выход по 400
 	} else if req.Method == http.MethodPost {
 		data, err := io.ReadAll(req.Body)
