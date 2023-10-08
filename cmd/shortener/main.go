@@ -16,7 +16,7 @@ import (
 )
 
 const hashLen int = 10
-const shortUrlDomain string = "http://localhosst:8080/"
+const shortUrlDomain string = "http://localhost:8080/"
 
 var urlStorage [][]string //слайс для хранения URL и их хешей, первый индекс - запись, второй: 0 - URL, 1 - хеш
 
