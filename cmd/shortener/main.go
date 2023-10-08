@@ -52,11 +52,11 @@ func shortingRequest(res http.ResponseWriter, req *http.Request) {
 		if err != nil {
 			res.WriteHeader(http.StatusBadRequest)
 		}
-		shrtUrl := addURL(data)
+		shrtURL := addURL(data)
 		res.WriteHeader(http.StatusCreated)
 		res.Header().Set("Content-Type", "text/plain") // Установим тип ответа text/plain
-		res.Header().Set("Content-Length", strconv.Itoa(len(shrtUrl)))
-		res.Write(shrtUrl)
+		res.Header().Set("Content-Length", strconv.Itoa(len(shrtURL)))
+		res.Write(shrtURL)
 
 	} else {
 		res.WriteHeader(http.StatusBadRequest) // Ошибка запроса (не пост, и не гет)
