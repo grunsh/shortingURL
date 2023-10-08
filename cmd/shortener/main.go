@@ -12,18 +12,20 @@ const shortUrlDomain string = "http://localhosst:8080/"
 
 var urlStorage [][]string //слайс для хранения URL и их хешей, первый индекс - запись, второй: 0 - URL, 1 - хеш
 
+// Генератор сокращённого URL. Использует константу shortUrlDomain как настройку.
 func addURL(url []byte) []byte {
-	tempVar := string(url)
+	//	tempVar := string(url)
 	hashStr := getHash() // Сохраним хэш в переменную. Понадобится для сохранения в массиве и для формирования короткого URL
 	urlVar := make([]string, 0)
 	// Сформируем слайс-строку в слайс урлов. Колонка 0 - сокращённый URL, 1 - хеш
-	urlVar = append(urlVar, tempVar)
+	urlVar = append(urlVar, string(url))
 	urlVar = append(urlVar, hashStr)
 	// ...и сохраним её в слайс строк
 	urlStorage = append(urlStorage, urlVar)
 	return []byte(shortUrlDomain + hashStr)
 }
 
+// Генератор хеша. Использует константу hashLen для определения длины
 func getHash() string {
 	var letters = string("abcdefghijklmnopqrstuvwxyzABCDEFGHIJKLMNOPQRSTUVWXYZ") //словарик для генерации хешей
 	var b string = ""
