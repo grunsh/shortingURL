@@ -1,7 +1,6 @@
 package main
 
 import (
-	"fmt"
 	"io"
 	"math/rand"
 	"net/http"
@@ -53,7 +52,6 @@ func shortingRequest(res http.ResponseWriter, req *http.Request) {
 			res.WriteHeader(http.StatusBadRequest)
 		}
 		shrtUrl := addURL(data)
-		fmt.Println(urlStorage) // Для отладки, пишет в консоль весь массив сохранённого
 		res.WriteHeader(http.StatusCreated)
 		res.Header().Set("Content-Type", "text/plain") // Установим тип ответа text/plain
 		res.Header().Set("Content-Length", string(len(shrtUrl)))
