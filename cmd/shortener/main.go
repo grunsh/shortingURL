@@ -4,6 +4,7 @@ import (
 	"io"
 	"math/rand"
 	"net/http"
+	"strconv"
 )
 
 const hashLen int = 10
@@ -54,7 +55,7 @@ func shortingRequest(res http.ResponseWriter, req *http.Request) {
 		shrtUrl := addURL(data)
 		res.WriteHeader(http.StatusCreated)
 		res.Header().Set("Content-Type", "text/plain") // Установим тип ответа text/plain
-		res.Header().Set("Content-Length", string(len(shrtUrl)))
+		res.Header().Set("Content-Length", strconv.Itoa(len(shrtUrl)))
 		res.Write(shrtUrl)
 
 	} else {
