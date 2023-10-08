@@ -4,10 +4,11 @@ import (
 	"io"
 	"math/rand"
 	"net/http"
+	"strconv"
 )
 
 const hashLen int = 10
-const shortUrlDomain string = "http://localhosst:8080/"
+const shortUrlDomain string = "http://localhost:8080/"
 
 var urlStorage [][]string //слайс для хранения URL и их хешей, первый индекс - запись, второй: 0 - URL, 1 - хеш
 
@@ -54,7 +55,7 @@ func shortingRequest(res http.ResponseWriter, req *http.Request) {
 		shrtUrl := addURL(data)
 		res.WriteHeader(http.StatusCreated)
 		res.Header().Set("Content-Type", "text/plain") // Установим тип ответа text/plain
-		res.Header().Set("Content-Length", string(len(shrtUrl)))
+		res.Header().Set("Content-Length", strconv.Itoa(len(shrtUrl)))
 		res.Write(shrtUrl)
 
 	} else {
