@@ -9,16 +9,21 @@
 package main
 
 import (
+	"fmt"
 	"github.com/go-chi/chi/v5"
 	"io"
 	"log"
 	"math/rand"
 	"net/http"
+	"shortingURL/cmd/shortener/config"
 	"strconv"
+	"strings"
 )
 
 const hashLen int = 10
-const shortURLDomain string = "http://localhost:8080/"
+
+// const shortURLDomain string = "http://localhost:8080/"
+var shortURLDomain string
 
 var urlStorage [][]string //слайс для хранения URL и их хешей, первый индекс - запись, второй: 0 - URL, 1 - хеш
 
@@ -30,6 +35,7 @@ func addURL(url []byte) []byte {
 	urlVar = append(urlVar, string(url))
 	urlVar = append(urlVar, hashStr)
 	urlStorage = append(urlStorage, urlVar) // ...и сохраним её в слайс строк
+	fmt.Println(shortURLDomain + hashStr)
 	return []byte(shortURLDomain + hashStr)
 }
 
@@ -80,9 +86,19 @@ func notSupportedMethod(res http.ResponseWriter, req *http.Request) {
 }
 
 func main() {
+	fmt.Println("--------", config.ServerAddress)
+	tempV := strings.Split(config.ServerAddress, ":")
+	serverName := tempV[0]
+	serverPort := tempV[1]
+	fmt.Println("Вот такой адрес: ", config.ServerAddress)
+	fmt.Println("Вот такой URL: ", config.ShortBaseURL)
+
 	r := chi.NewRouter()
 	r.Get("/{id}", shortingGetURL)
 	r.Post("/", shortingRequest)
 	r.Put("/", notSupportedMethod)
-	log.Fatal(http.ListenAndServe(":8080", r))
+
+	log.Fatal(http.ListenAndServe(serverName+":"+serverPort, r))
+}
+func init() {
 }
