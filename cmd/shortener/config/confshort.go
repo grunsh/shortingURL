@@ -2,7 +2,6 @@ package config
 
 import (
 	"flag"
-	"fmt"
 )
 
 var ServerAddress string
@@ -17,6 +16,10 @@ func init() {
 	flag.Parse()
 	ServerAddress := *ServAddr
 	ShortURLBase := *ShortBaseURL
-	fmt.Println(ServerAddress)
-	fmt.Println(ShortURLBase)
+	if ServerAddress == "" {
+		panic("ой")
+	}
+	if ShortURLBase == "" {
+		panic("ой")
+	}
 }
