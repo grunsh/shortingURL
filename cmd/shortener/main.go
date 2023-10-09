@@ -87,7 +87,7 @@ func main() {
 	r := chi.NewRouter()
 	r.Get("/{id}", shortingGetURL)
 	r.Post("/", shortingRequest)
-	r.Put("/", notSupportedMethod)
+	r.Put("/{id}", notSupportedMethod)
 	// если интерфейс не реализован,
 	// здесь будет ошибка компиляции
 	// проверка реализации
