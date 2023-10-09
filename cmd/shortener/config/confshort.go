@@ -19,17 +19,4 @@ func init() {
 	ShortBaseURL = *ShortURLBase
 	fmt.Println("Адрес сервера: ", ServerAddress)
 	fmt.Println("Базовый URL:", ShortBaseURL)
-	/*
-		if ServerAddress != "localhost:8080" {
-			fmt.Println("Получено из параметров", ServerAddress)
-		} else {
-			ServerAddress = "localhost:8080"
-		}
-		if ShortBaseURL != "http://localhost:8080/" {
-			fmt.Println(ShortBaseURL)
-		} else {
-			ShortBaseURL = "http://localhost:8080/"
-		}
-	*/
-
 }
