@@ -58,6 +58,7 @@ func shortingGetURL(res http.ResponseWriter, req *http.Request) {
 	} //for... поиск хеша в памяти
 	res.Header().Set("Content-Type", "text/plain") // Установим тип ответа text/plain
 	res.WriteHeader(http.StatusBadRequest)         // Прошли весь массив, но хеша нет.
+	res.Write([]byte(""))
 }
 
 // Хендлер / для сокращения URL. На входе принимается URL как text/plain
@@ -74,12 +75,12 @@ func shortingRequest(res http.ResponseWriter, req *http.Request) {
 	res.Header().Set("Content-Length", strconv.Itoa(len(shrtURL)))
 	res.WriteHeader(http.StatusCreated)
 	res.Write(shrtURL)
-
 }
 
 func notSupportedMethod(res http.ResponseWriter, req *http.Request) {
 	res.Header().Set("Content-Type", "text/plain") // Установим тип ответа text/plain
 	res.WriteHeader(http.StatusBadRequest)
+	res.Write([]byte(""))
 }
 
 func main() {
