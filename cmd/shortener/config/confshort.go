@@ -2,7 +2,6 @@ package config
 
 import (
 	"flag"
-	"fmt"
 )
 
 var ServerAddress string
@@ -17,6 +16,4 @@ func init() {
 	flag.Parse()
 	ServerAddress = *ServAddr
 	ShortBaseURL = *ShortURLBase
-	fmt.Println("Адрес сервера: ", ServerAddress)
-	fmt.Println("Базовый URL:", ShortBaseURL)
 }
