@@ -58,13 +58,16 @@ func shortingGetURL(res http.ResponseWriter, req *http.Request) {
 	} //for... поиск хеша в памяти
 	res.Header().Set("Content-Type", "text/plain") // Установим тип ответа text/plain
 	res.WriteHeader(http.StatusBadRequest)         // Прошли весь массив, но хеша нет.
-	res.Write([]byte(""))
+	_, err := res.Write([]byte(""))
+	if err != nil {
+		log.Println(err)
+	}
+
 }
 
 // Хендлер / для сокращения URL. На входе принимается URL как text/plain
 func shortingRequest(res http.ResponseWriter, req *http.Request) {
 	data, err := io.ReadAll(req.Body)
-	req.Body.Close()
 	if err != nil {
 		res.Header().Set("Content-Type", "text/plain") // Установим тип ответа text/plain
 		res.WriteHeader(http.StatusBadRequest)
@@ -75,21 +78,13 @@ func shortingRequest(res http.ResponseWriter, req *http.Request) {
 	res.Header().Set("Content-Length", strconv.Itoa(len(shrtURL)))
 	res.WriteHeader(http.StatusCreated)
 	res.Write(shrtURL)
-}
-
-func notSupportedMethod(res http.ResponseWriter, req *http.Request) {
-	res.Header().Set("Content-Type", "text/plain") // Установим тип ответа text/plain
-	res.WriteHeader(http.StatusBadRequest)
-	res.Write([]byte(""))
+	req.Body.Close()
 }
 
 func main() {
 	r := chi.NewRouter()
 	r.Get("/{id}", shortingGetURL)
 	r.Post("/", shortingRequest)
-	//	r.Put("/{id}", notSupportedMethod)
-	// если интерфейс не реализован,
-	// здесь будет ошибка компиляции
-	// проверка реализации
+
 	log.Fatal(http.ListenAndServe(":8080", r))
 }

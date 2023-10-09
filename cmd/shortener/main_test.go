@@ -40,16 +40,6 @@ func Test_shortingRequest(t *testing.T) {
 				status:      http.StatusCreated,
 			},
 		},
-		/*		{
-				name:    "URL правильный, но не тот метод",
-				request: "https://www.yandex.ru/",
-				method:  http.MethodPut,
-				want: want{
-					response:    "",
-					contentType: "text/plain",
-					status:      http.StatusBadRequest,
-				},
-			},*/
 		{
 			name:    "hash которого нет",
 			request: shortURLDomain + "/123",
