@@ -9,7 +9,9 @@
 package main
 
 import (
+	"github.com/go-chi/chi/v5"
 	"io"
+	"log"
 	"math/rand"
 	"net/http"
 	"strconv"
@@ -77,11 +79,8 @@ func shortingRequest(res http.ResponseWriter, req *http.Request) {
 }
 
 func main() {
-	shorting := http.NewServeMux()
-	shorting.HandleFunc(`/`, shortingRequest)
-
-	err := http.ListenAndServe(`:8080`, shorting)
-	if err != nil {
-		panic(err)
-	}
+	r := chi.NewRouter()
+	r.Get("/{id}", shortingRequest)
+	r.Post("/", shortingRequest)
+	log.Fatal(http.ListenAndServe(":8080", r))
 }
