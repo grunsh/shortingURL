@@ -18,7 +18,10 @@ import (
 )
 
 const hashLen int = 10
+
 const shortURLDomain string = "http://localhost:8080/"
+
+//var shortURLDomain string = config.ServerAddress
 
 var urlStorage [][]string //слайс для хранения URL и их хешей, первый индекс - запись, второй: 0 - URL, 1 - хеш
 
@@ -84,5 +87,8 @@ func main() {
 	r.Get("/{id}", shortingGetURL)
 	r.Post("/", shortingRequest)
 	r.Put("/", notSupportedMethod)
+	// если интерфейс не реализован,
+	// здесь будет ошибка компиляции
+	// проверка реализации
 	log.Fatal(http.ListenAndServe(":8080", r))
 }
