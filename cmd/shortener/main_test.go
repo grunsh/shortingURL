@@ -20,7 +20,7 @@ import (
 
 func Test_shortingRequest(t *testing.T) {
 	type want struct {
-		response    []byte
+		response    string
 		contentType string
 		status      int
 	}
@@ -35,7 +35,7 @@ func Test_shortingRequest(t *testing.T) {
 			request: "https://www.yandex.ru/",
 			method:  http.MethodPost,
 			want: want{
-				response:    []byte(shortURLDomain),
+				response:    shortURLDomain,
 				contentType: "text/plain",
 				status:      http.StatusCreated,
 			},
@@ -45,7 +45,7 @@ func Test_shortingRequest(t *testing.T) {
 			request: "https://www.yandex.ru/",
 			method:  http.MethodPut,
 			want: want{
-				response:    []byte(""),
+				response:    "",
 				contentType: "text/plain",
 				status:      http.StatusBadRequest,
 			},
@@ -55,12 +55,11 @@ func Test_shortingRequest(t *testing.T) {
 			request: shortURLDomain + "/123",
 			method:  http.MethodGet,
 			want: want{
-				response:    []byte(""),
+				response:    "",
 				contentType: "text/plain",
 				status:      http.StatusBadRequest,
 			},
 		},
-		// TODO: Add test cases.
 	}
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
