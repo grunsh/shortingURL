@@ -80,11 +80,6 @@ func shortingRequest(res http.ResponseWriter, req *http.Request) {
 
 }
 
-func notSupportedMethod(res http.ResponseWriter, req *http.Request) {
-	res.Header().Set("Content-Type", "text/plain") // Установим тип ответа text/plain
-	res.WriteHeader(http.StatusBadRequest)
-}
-
 func main() {
 	tempV := strings.Split(config.ServerAddress, ":")
 	serverName := tempV[0]
@@ -96,7 +91,6 @@ func main() {
 	r := chi.NewRouter()
 	r.Get("/{id}", shortingGetURL)
 	r.Post("/", shortingRequest)
-	r.Put("/", notSupportedMethod)
 
 	log.Fatal(http.ListenAndServe(serverName+":"+serverPort, r))
 }
