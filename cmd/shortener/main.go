@@ -43,44 +43,41 @@ func getHash() string {
 	return b
 }
 
+func shortingGetURL(res http.ResponseWriter, req *http.Request) {
+	id := req.URL.Path[1:]                      // Откусываем / и записываем id
+	for i := len(urlStorage) - 1; i >= 0; i-- { //По слайсу идём с конца, ищем самый свежий редирект
+		if urlStorage[i][1] == id {
+			res.Header().Set("Location", urlStorage[i][0]) // Укажем куда редирект
+			res.Header().Set("Content-Type", "text/plain") // Установим тип ответа text/plain
+			res.WriteHeader(http.StatusTemporaryRedirect)  // Передаём 307
+			return                                         // Нашли нужный хеш и выдали редирект. Завершаем работу хендлера.
+		}
+	} //for... поиск хеша в памяти
+	res.Header().Set("Content-Type", "text/plain") // Установим тип ответа text/plain
+	res.WriteHeader(http.StatusBadRequest)         // Прошли весь массив, но хеша нет.
+	return                                         // Выход по 400
+}
+
 // Хендлер / для сокращения URL. На входе принимается URL как text/plain
 func shortingRequest(res http.ResponseWriter, req *http.Request) {
-	if req.Method == http.MethodGet { // Если GET / , то вернём редирект и сокращённый URL
-		id := req.URL.Path[1:]                      // Откусываем / и записываем id
-		for i := len(urlStorage) - 1; i >= 0; i-- { //По слайсу идём с конца, ищем самый свежий редирект
-			if urlStorage[i][1] == id {
-				res.Header().Set("Location", urlStorage[i][0]) // Укажем куда редирект
-				res.Header().Set("Content-Type", "text/plain") // Установим тип ответа text/plain
-				res.WriteHeader(http.StatusTemporaryRedirect)  // Передаём 307
-				return                                         // Нашли нужный хеш и выдали редирект. Завершаем работу хендлера.
-			}
-		} //for... поиск хеша в памяти
+	data, err := io.ReadAll(req.Body)
+	req.Body.Close()
+	if err != nil {
 		res.Header().Set("Content-Type", "text/plain") // Установим тип ответа text/plain
-		res.WriteHeader(http.StatusBadRequest)         // Прошли весь массив, но хеша нет.
-		return                                         // Выход по 400
-	} else if req.Method == http.MethodPost {
-		data, err := io.ReadAll(req.Body)
-		req.Body.Close()
-		if err != nil {
-			res.Header().Set("Content-Type", "text/plain") // Установим тип ответа text/plain
-			res.WriteHeader(http.StatusBadRequest)
-			return // Выход по 400
-		}
-		shrtURL := addURL(data)
-		res.Header().Set("Content-Type", "text/plain") // Установим тип ответа text/plain
-		res.Header().Set("Content-Length", strconv.Itoa(len(shrtURL)))
-		res.WriteHeader(http.StatusCreated)
-		res.Write(shrtURL)
-	} else {
-		res.Header().Set("Content-Type", "text/plain") // Установим тип ответа text/plain
-		res.WriteHeader(http.StatusBadRequest)         // Ошибка запроса (не пост, и не гет)
+		res.WriteHeader(http.StatusBadRequest)
+		return // Выход по 400
 	}
+	shrtURL := addURL(data)
+	res.Header().Set("Content-Type", "text/plain") // Установим тип ответа text/plain
+	res.Header().Set("Content-Length", strconv.Itoa(len(shrtURL)))
+	res.WriteHeader(http.StatusCreated)
+	res.Write(shrtURL)
 
 }
 
 func main() {
 	r := chi.NewRouter()
-	r.Get("/{id}", shortingRequest)
+	r.Get("/{id}", shortingGetURL)
 	r.Post("/", shortingRequest)
 	log.Fatal(http.ListenAndServe(":8080", r))
 }
