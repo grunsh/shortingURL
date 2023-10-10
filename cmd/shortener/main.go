@@ -9,7 +9,6 @@
 package main
 
 import (
-	"fmt"
 	"github.com/go-chi/chi/v5"
 	"io"
 	"log"
@@ -35,7 +34,6 @@ func addURL(url []byte) []byte {
 	urlVar = append(urlVar, string(url))
 	urlVar = append(urlVar, hashStr)
 	urlStorage = append(urlStorage, urlVar) // ...и сохраним её в слайс строк
-	fmt.Println(shortURLDomain + hashStr)
 	return []byte(shortURLDomain + hashStr)
 }
 
