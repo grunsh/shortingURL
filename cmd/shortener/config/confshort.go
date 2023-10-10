@@ -1,37 +1,46 @@
 package config
 
-import (
-	"flag"
-	"fmt"
-	"github.com/caarlos0/env/v6"
-	"log"
-)
-
 var ServerAddress string
 var ShortBaseURL string
 
-type Sconfig struct {
-	ServerAddress string `env:"SERVER_ADDRESS"`
-	BaseURL       string `env:"BASE_URL"`
-	PATH          string `env:"PATH"`
+type FlagString struct {
+	name     string
+	defValue string
+	usage    string
 }
 
-func main() {
+var Prms []struct {
+	description string
+	param       FlagString
 }
 
 func init() {
-	var cfg Sconfig
-	err := env.Parse(&cfg) // 👈 Parse environment variables into `Config`
-	if err != nil {
-		log.Fatalf("unable to parse ennvironment variables: %e", err)
+	Prms = []struct {
+		description string
+		param       FlagString
+	}{
+		{
+			description: "Параметр адреса сервера на котором он должен запуститься",
+			param: FlagString{
+				name:     "a",
+				defValue: "localhost:8080",
+				usage:    "Host server address",
+			},
+		},
+		{
+			description: "Параметр базового сокращённого URL",
+			param: FlagString{
+				name:     "b",
+				defValue: "http://localhost:8080/",
+				usage:    "Short base address",
+			},
+		},
 	}
-	ServAddr := flag.String("a", "localhost:8080", "Host server address")
-	ShortURLBase := flag.String("b", "http://localhost:8080/", "Short base address")
-	flag.Parse()
-	ServerAddress = *ServAddr
-	//	fmt.Println(ServerAddress)
-	ShortBaseURL = *ShortURLBase
-	//	fmt.Println(ShortBaseURL)
-	fmt.Println(cfg)
-	//	fmt.Println("Адрес сервера: ", cfg.ServerAddress, "URL: ", cfg.BaseURL)
+	if len((Prms)) < 1 {
+		panic("Ok")
+	}
+	//ServAddrParam := flag.String("a", "localhost:8080", "Host server address")
+	//	ShortURLBaseParam := flag.String("b", "http://localhost:8080/", "Short base address")
+	//	ServerAddress = *ServAddrParam
+	//ShortBaseURL = *ShortURLBaseParam
 }

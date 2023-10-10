@@ -9,6 +9,7 @@
 package main
 
 import (
+	"flag"
 	"github.com/go-chi/chi/v5"
 	"io"
 	"log"
@@ -34,7 +35,7 @@ func addURL(url []byte) []byte {
 	urlVar = append(urlVar, string(url))
 	urlVar = append(urlVar, hashStr)
 	urlStorage = append(urlStorage, urlVar) // ...и сохраним её в слайс строк
-	//	fmt.Println("Добавление в базу: ", shortURLDomain+hashStr)
+	fmt.Println(shortURLDomain + hashStr)
 	return []byte(shortURLDomain + hashStr)
 }
 
@@ -49,8 +50,7 @@ func getHash() string {
 }
 
 func shortingGetURL(res http.ResponseWriter, req *http.Request) {
-	id := req.URL.Path[1:] // Откусываем / и записываем id
-	//fmt.Println("GET прилетел с id: ", id)
+	id := req.URL.Path[1:]                      // Откусываем / и записываем id
 	for i := len(urlStorage) - 1; i >= 0; i-- { //По слайсу идём с конца, ищем самый свежий редирект
 		if urlStorage[i][1] == id {
 			res.Header().Set("Location", urlStorage[i][0]) // Укажем куда редирект
@@ -81,14 +81,34 @@ func shortingRequest(res http.ResponseWriter, req *http.Request) {
 }
 
 func main() {
-	tempV := strings.Split(config.ServerAddress, ":")
+
+	/*
+		Вот эту всё чехарду с параметрами пришлось вытащить сюда из конфига, потому что иначе flag.Parse()
+		в ините пакета конфига подхватывает параметры при запуске юнит тестов и всё фейлится к чертям.
+		Я пока не нашёл способа это победить, сроки жмут, уже ночь, надо 5-й инкремент сдать :(
+	*/
+	ServAddrParam := flag.String("a", "localhost:8080", "Host server address")
+	ShortURLBaseParam := flag.String("b", "http://localhost:8080/", "Short base address")
+	flag.Parse()
+	ServerAddress := *ServAddrParam
+	ShortBaseURL := *ShortURLBaseParam
+	if ShortBaseURL[len(ShortBaseURL)-1:] != "/" { // Накинем "/", т.к. в параметрах его не передают
+		ShortBaseURL += "/"
+	}
+	tempV := strings.Split(ServerAddress, ":")
 	serverName := tempV[0]
 	serverPort := tempV[1]
-	shortURLDomain = config.ShortBaseURL
+	shortURLDomain = ShortBaseURL
+	//  Использовалось для отладки
+	//	fmt.Println("Вот такой адрес: ", ServerAddress)
+	//	fmt.Println("Вот такой URL: ", ShortBaseURL)
+	//	fmt.Println("Сокращатор будет: ", shortURLDomain)
 
 	r := chi.NewRouter()
 	r.Get("/{id}", shortingGetURL)
 	r.Post("/", shortingRequest)
 
 	log.Fatal(http.ListenAndServe(serverName+":"+serverPort, r))
+}
+func init() {
 }

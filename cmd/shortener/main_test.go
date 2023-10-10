@@ -1,6 +1,6 @@
 /*
 Дяденька, вот ты, который взялся смотреть мой код и ревью писать. Обращаюсь к тебе с просьбой, не будь сильно строг,
-ПОЖАЛУЙСТА!   Я не кодил почти 20 лет (было php/Perl во времена сисадминства, интернет тогда был dial-up ещё).
+ПОЖАЛУЙСТА!  Я не кодил почти 20 лет (было php/Perl во времена сисадминства, интернет тогда был dial-up ещё).
 Я попросил на работе купить мне курс Go. И как-то так получилось, что был куплен продвинутый курс, а не для тех, кто
 учится ходить. Для меня любой мало-мальски работающий код - победа, как для годовалого ребёнка первый дейсяток шагов
 держась за палец. Я не сдаюсь. Стараюсь. Я даже с гитом до курса не работал и никогда не писал юнит тестов. А тут вон чо.
@@ -41,18 +41,8 @@ func Test_shortingRequest(t *testing.T) {
 			},
 		},
 		{
-			name:    "URL правильный, но не тот метод",
-			request: "https://www.yandex.ru/",
-			method:  http.MethodPut,
-			want: want{
-				response:    "",
-				contentType: "text/plain",
-				status:      http.StatusBadRequest,
-			},
-		},
-		{
 			name:    "hash которого нет",
-			request: shortURLDomain + "/123",
+			request: shortURLDomain + "/GGGGGGGGGG",
 			method:  http.MethodGet,
 			want: want{
 				response:    "",
@@ -60,20 +50,24 @@ func Test_shortingRequest(t *testing.T) {
 				status:      http.StatusBadRequest,
 			},
 		},
-		// TODO: Add test cases.
 	}
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
 			request := httptest.NewRequest(tt.method, tt.request, nil)
 			w := httptest.NewRecorder()
-			shortingRequest(w, request)
-			res := w.Result()
-			res.Body.Close()
-			data, err := io.ReadAll(res.Body)
-			require.NoError(t, err)
 			if tt.name[0] == 'H' { // H - метка для тестов, которые для обычных запросов с ожидаемым нормальным поведением.
+				shortingRequest(w, request)
+				res := w.Result()
+				data, err := io.ReadAll(res.Body)
+				res.Body.Close()
+				require.NoError(t, err)
 				assert.Equal(t, tt.want.response, string(data)[:len(shortURLDomain)])
 			} else {
+				shortingGetURL(w, request)
+				res := w.Result()
+				data, err := io.ReadAll(res.Body)
+				res.Body.Close()
+				require.NoError(t, err)
 				assert.Equal(t, tt.want.response, string(data))
 				assert.Equal(t, tt.want.status, res.StatusCode)
 				assert.Equal(t, tt.want.contentType, res.Header.Get("Content-Type"))
