@@ -46,6 +46,7 @@ func getHash() string {
 	return b
 }
 
+// Хендлер для получения редиректа по id
 func shortingGetURL(res http.ResponseWriter, req *http.Request) {
 	id := req.URL.Path[1:]                      // Откусываем / и записываем id
 	for i := len(urlStorage) - 1; i >= 0; i-- { //По слайсу идём с конца, ищем самый свежий редирект
