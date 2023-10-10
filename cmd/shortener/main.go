@@ -10,12 +10,12 @@ package main
 
 import (
 	"flag"
+	"fmt"
 	"github.com/go-chi/chi/v5"
 	"io"
 	"log"
 	"math/rand"
 	"net/http"
-	"shortingURL/cmd/shortener/config"
 	"strconv"
 	"strings"
 )
@@ -80,14 +80,19 @@ func shortingRequest(res http.ResponseWriter, req *http.Request) {
 }
 
 func main() {
+	ServAddrParam := flag.String("a", "localhost:8080", "Host server address")
+	ShortURLBaseParam := flag.String("b", "http://localhost:8080/", "Short base address")
 	flag.Parse()
-	tempV := strings.Split(config.ServerAddress, ":")
+	ServerAddress := *ServAddrParam
+	ShortBaseURL := *ShortURLBaseParam
+
+	tempV := strings.Split(ServerAddress, ":")
 	serverName := tempV[0]
 	serverPort := tempV[1]
-	shortURLDomain = config.ShortBaseURL
-	//	fmt.Println("Вот такой адрес: ", config.ServerAddress)
-	//	fmt.Println("Вот такой URL: ", config.ShortBaseURL)
-	//	fmt.Println("Сокращатор будет: ", shortURLDomain)
+	shortURLDomain = ShortBaseURL
+	fmt.Println("Вот такой адрес: ", ServerAddress)
+	fmt.Println("Вот такой URL: ", ShortBaseURL)
+	fmt.Println("Сокращатор будет: ", shortURLDomain)
 
 	r := chi.NewRouter()
 	r.Get("/{id}", shortingGetURL)
