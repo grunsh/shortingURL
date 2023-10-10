@@ -84,8 +84,8 @@ func shortingRequest(res http.ResponseWriter, req *http.Request) {
 
 func main() {
 	r := chi.NewRouter()
-	r.Get("/{id}", shortingGetURL)
 	r.Post("/", shortingRequest)
+	r.Get("/{id}", shortingGetURL)
 
 	log.Fatal(http.ListenAndServe(":8080", r))
 }
