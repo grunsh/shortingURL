@@ -82,6 +82,7 @@ func main() {
 	tempV := strings.Split(config.ServerAddress, ":")
 	serverName := tempV[0]
 	serverPort := tempV[1]
+	shortURLDomain = config.ShortBaseURL
 	//	fmt.Println("Вот такой адрес: ", config.ServerAddress)
 	//	fmt.Println("Вот такой URL: ", config.ShortBaseURL)
 	//	fmt.Println("Сокращатор будет: ", shortURLDomain)
