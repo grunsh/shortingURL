@@ -11,9 +11,8 @@ func main() {
 }
 
 func init() {
-	ServAddr := flag.String("a", "localhost:8080", "Host server address")
-	ShortURLBase := flag.String("b", "http://localhost:8080/", "Short base address")
-	flag.Parse()
-	ServerAddress = *ServAddr
-	ShortBaseURL = *ShortURLBase
+	ServAddrParam := flag.String("a", "localhost:8080", "Host server address")
+	ShortURLBaseParam := flag.String("b", "http://localhost:8080/", "Short base address")
+	ServerAddress = *ServAddrParam
+	ShortBaseURL = *ShortURLBaseParam
 }

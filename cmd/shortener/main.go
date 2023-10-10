@@ -9,6 +9,7 @@
 package main
 
 import (
+	"flag"
 	"github.com/go-chi/chi/v5"
 	"io"
 	"log"
@@ -79,6 +80,7 @@ func shortingRequest(res http.ResponseWriter, req *http.Request) {
 }
 
 func main() {
+	flag.Parse()
 	tempV := strings.Split(config.ServerAddress, ":")
 	serverName := tempV[0]
 	serverPort := tempV[1]
