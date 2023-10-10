@@ -42,7 +42,7 @@ func Test_shortingRequest(t *testing.T) {
 		},
 		{
 			name:    "hash которого нет",
-			request: shortURLDomain + "/123",
+			request: shortURLDomain + "/12345",
 			method:  http.MethodGet,
 			want: want{
 				response:    "",
