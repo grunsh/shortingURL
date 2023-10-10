@@ -9,7 +9,6 @@
 package main
 
 import (
-	"fmt"
 	"github.com/go-chi/chi/v5"
 	"io"
 	"log"
@@ -35,7 +34,7 @@ func addURL(url []byte) []byte {
 	urlVar = append(urlVar, string(url))
 	urlVar = append(urlVar, hashStr)
 	urlStorage = append(urlStorage, urlVar) // ...и сохраним её в слайс строк
-	fmt.Println(shortURLDomain + hashStr)
+	//	fmt.Println("Добавление в базу: ", shortURLDomain+hashStr)
 	return []byte(shortURLDomain + hashStr)
 }
 
@@ -50,7 +49,8 @@ func getHash() string {
 }
 
 func shortingGetURL(res http.ResponseWriter, req *http.Request) {
-	id := req.URL.Path[1:]                      // Откусываем / и записываем id
+	id := req.URL.Path[1:] // Откусываем / и записываем id
+	//fmt.Println("GET прилетел с id: ", id)
 	for i := len(urlStorage) - 1; i >= 0; i-- { //По слайсу идём с конца, ищем самый свежий редирект
 		if urlStorage[i][1] == id {
 			res.Header().Set("Location", urlStorage[i][0]) // Укажем куда редирект
@@ -84,6 +84,7 @@ func main() {
 	tempV := strings.Split(config.ServerAddress, ":")
 	serverName := tempV[0]
 	serverPort := tempV[1]
+	shortURLDomain = config.ShortBaseURL
 
 	r := chi.NewRouter()
 	r.Get("/{id}", shortingGetURL)
