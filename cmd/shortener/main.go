@@ -82,10 +82,16 @@ func shortingRequest(res http.ResponseWriter, req *http.Request) {
 	req.Body.Close()
 }
 
+func shortingUnsupportedMothod(res http.ResponseWriter, req *http.Request) {
+	res.Header().Set("Content-Type", "text/plain") // Установим тип ответа text/plain
+	res.WriteHeader(http.StatusBadRequest)
+}
+
 func main() {
 	r := chi.NewRouter()
 	r.Post("/", shortingRequest)
 	r.Get("/{id}", shortingGetURL)
+	r.Put("/", shortingUnsupportedMothod)
 
 	log.Fatal(http.ListenAndServe(":8080", r))
 }
