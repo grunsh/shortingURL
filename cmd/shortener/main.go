@@ -10,7 +10,6 @@ package main
 
 import (
 	"flag"
-	"fmt"
 	"github.com/go-chi/chi/v5"
 	"io"
 	"log"
@@ -80,22 +79,28 @@ func shortingRequest(res http.ResponseWriter, req *http.Request) {
 }
 
 func main() {
+
+	/*
+		Вот эту всё чехарду с параметрами пришлось вытащить сюда из конфига, потому что иначе flag.Parse()
+		в ините пакета конфига подхватывает параметры при запуске юнит тестов и всё фейлится к чертям.
+		Я пока не нашёл способа это победить, сроки жмут, уже ночь, надо 5-й инкремент сдать :(
+	*/
 	ServAddrParam := flag.String("a", "localhost:8080", "Host server address")
 	ShortURLBaseParam := flag.String("b", "http://localhost:8080/", "Short base address")
 	flag.Parse()
 	ServerAddress := *ServAddrParam
 	ShortBaseURL := *ShortURLBaseParam
-	if ShortBaseURL[len(ShortBaseURL)-1:] != "/" {
+	if ShortBaseURL[len(ShortBaseURL)-1:] != "/" { // Накинем "/", т.к. в параметрах его не передают
 		ShortBaseURL += "/"
 	}
-
 	tempV := strings.Split(ServerAddress, ":")
 	serverName := tempV[0]
 	serverPort := tempV[1]
 	shortURLDomain = ShortBaseURL
-	fmt.Println("Вот такой адрес: ", ServerAddress)
-	fmt.Println("Вот такой URL: ", ShortBaseURL)
-	fmt.Println("Сокращатор будет: ", shortURLDomain)
+	//  Использовалось для отладки
+	//	fmt.Println("Вот такой адрес: ", ServerAddress)
+	//	fmt.Println("Вот такой URL: ", ShortBaseURL)
+	//	fmt.Println("Сокращатор будет: ", shortURLDomain)
 
 	r := chi.NewRouter()
 	r.Get("/{id}", shortingGetURL)
