@@ -85,6 +85,9 @@ func main() {
 	flag.Parse()
 	ServerAddress := *ServAddrParam
 	ShortBaseURL := *ShortURLBaseParam
+	if ShortBaseURL[len(ShortBaseURL)-1:] != "/" {
+		ShortBaseURL += "/"
+	}
 
 	tempV := strings.Split(ServerAddress, ":")
 	serverName := tempV[0]
