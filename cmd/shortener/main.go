@@ -92,5 +92,3 @@ func main() {
 
 	log.Fatal(http.ListenAndServe(serverName+":"+serverPort, r))
 }
-func init() {
-}

@@ -2,6 +2,7 @@ package config
 
 import (
 	"flag"
+	"fmt"
 	"github.com/caarlos0/env/v6"
 	"log"
 )
@@ -31,6 +32,6 @@ func init() {
 	//	fmt.Println(ServerAddress)
 	ShortBaseURL = *ShortURLBase
 	//	fmt.Println(ShortBaseURL)
-	//	fmt.Println(cfg)
+	fmt.Println(cfg)
 	//	fmt.Println("Адрес сервера: ", cfg.ServerAddress, "URL: ", cfg.BaseURL)
 }
