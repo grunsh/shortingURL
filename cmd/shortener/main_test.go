@@ -26,12 +26,14 @@ func Test_shortingRequest(t *testing.T) {
 	}
 	tests := []struct {
 		name    string
+		normal  bool
 		request string
 		method  string
 		want    want
 	}{
 		{
-			name:    "H Простая проверка простого URL (как-то надо откусить hash)",
+			name:    "Простая проверка простого URL. Добавление",
+			normal:  true,
 			request: "https://www.yandex.ru/",
 			method:  http.MethodPost,
 			want: want{
@@ -42,7 +44,30 @@ func Test_shortingRequest(t *testing.T) {
 		},
 		{
 			name:    "hash которого нет",
+			normal:  false,
 			request: shortURLDomain + "/GGGGGGGGGG",
+			method:  http.MethodGet,
+			want: want{
+				response:    "",
+				contentType: "text/plain",
+				status:      http.StatusBadRequest,
+			},
+		},
+		{
+			name:    "hash которого нет",
+			normal:  false,
+			request: shortURLDomain + "/GGGG",
+			method:  http.MethodGet,
+			want: want{
+				response:    "",
+				contentType: "text/plain",
+				status:      http.StatusBadRequest,
+			},
+		},
+		{
+			name:    "hash которого нет",
+			normal:  false,
+			request: shortURLDomain + "/",
 			method:  http.MethodGet,
 			want: want{
 				response:    "",
@@ -55,7 +80,7 @@ func Test_shortingRequest(t *testing.T) {
 		t.Run(tt.name, func(t *testing.T) {
 			request := httptest.NewRequest(tt.method, tt.request, nil)
 			w := httptest.NewRecorder()
-			if tt.name[0] == 'H' { // H - метка для тестов, которые для обычных запросов с ожидаемым нормальным поведением.
+			if tt.normal { // H - метка для тестов, которые для обычных запросов с ожидаемым нормальным поведением.
 				shortingRequest(w, request)
 				res := w.Result()
 				data, err := io.ReadAll(res.Body)

@@ -10,7 +10,6 @@ package main
 
 import (
 	"flag"
-	"fmt"
 	"github.com/caarlos0/env/v6"
 	"github.com/go-chi/chi/v5"
 	"io"
@@ -29,8 +28,7 @@ type Sconfig struct {
 
 var cfg Sconfig
 
-// Длина генерируемого хеша
-const hashLen int = 10
+const hashLen int = 10 // Длина генерируемого хеша
 
 // const shortURLDomain string = "http://localhost:8080/"
 var shortURLDomain string
@@ -39,22 +37,23 @@ type urlDBtype map[string][]byte
 
 var urlDB = make(urlDBtype) // мапа для урлов, ключ - хеш, значение - URL
 
+const charset = "abcdefghijklmnopqrstuvwxyzABCDEFGHIJKLMNOPQRSTUVWXYZ" // Для генератора хэшей
+
 // Генератор сокращённого URL. Использует константу shortURLDomain как настройку.
 func addURL(url []byte) []byte {
 	hash := getHash()
 	urlDB[hash] = url
-	fmt.Println("--------------- ", string(urlDB[hash]), " --- ", hash)
 	return []byte(shortURLDomain + hash)
 }
 
 // Генератор хеша. Использует константу hashLen для определения длины
 func getHash() string {
-	var letters = string("abcdefghijklmnopqrstuvwxyzABCDEFGHIJKLMNOPQRSTUVWXYZ") //словарик для генерации хешей
-	var b = ""
+	sb := strings.Builder{}
+	sb.Grow(hashLen)
 	for i := 0; i < hashLen; i++ {
-		b += string(letters[rand.Intn(len(letters))])
+		sb.WriteByte(charset[rand.Intn(len(charset))])
 	}
-	return b
+	return sb.String()
 }
 
 func shortingGetURL(res http.ResponseWriter, req *http.Request) {
