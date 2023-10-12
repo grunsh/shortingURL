@@ -10,6 +10,7 @@ package main
 
 import (
 	"flag"
+	"fmt"
 	"github.com/caarlos0/env/v6"
 	"github.com/go-chi/chi/v5"
 	"io"
@@ -34,17 +35,16 @@ const hashLen int = 10
 // const shortURLDomain string = "http://localhost:8080/"
 var shortURLDomain string
 
-var urlStorage [][]string //слайс для хранения URL и их хешей, первый индекс - запись, второй: 0 - URL, 1 - хеш
+type urlDBtype map[string][]byte
+
+var urlDB = make(urlDBtype) // мапа для урлов, ключ - хеш, значение - URL
 
 // Генератор сокращённого URL. Использует константу shortURLDomain как настройку.
 func addURL(url []byte) []byte {
-	hashStr := getHash() // Сохраним хэш в переменную. Понадобится для сохранения в массиве и для формирования короткого URL
-	urlVar := make([]string, 0)
-	// Сформируем слайс-строку в слайс урлов. Колонка 0 - сокращённый URL, 1 - хеш
-	urlVar = append(urlVar, string(url))
-	urlVar = append(urlVar, hashStr)
-	urlStorage = append(urlStorage, urlVar) // ...и сохраним её в слайс строк
-	return []byte(shortURLDomain + hashStr)
+	hash := getHash()
+	urlDB[hash] = url
+	fmt.Println("--------------- ", string(urlDB[hash]), " --- ", hash)
+	return []byte(shortURLDomain + hash)
 }
 
 // Генератор хеша. Использует константу hashLen для определения длины
@@ -58,17 +58,14 @@ func getHash() string {
 }
 
 func shortingGetURL(res http.ResponseWriter, req *http.Request) {
-	id := req.URL.Path[1:]                      // Откусываем / и записываем id
-	for i := len(urlStorage) - 1; i >= 0; i-- { //По слайсу идём с конца, ищем самый свежий редирект
-		if urlStorage[i][1] == id {
-			res.Header().Set("Location", urlStorage[i][0]) // Укажем куда редирект
-			res.Header().Set("Content-Type", "text/plain") // Установим тип ответа text/plain
-			res.WriteHeader(http.StatusTemporaryRedirect)  // Передаём 307
-			return                                         // Нашли нужный хеш и выдали редирект. Завершаем работу хендлера.
-		}
-	} //for... поиск хеша в памяти
+	id := req.URL.Path[1:]                         // Откусываем / и записываем id
 	res.Header().Set("Content-Type", "text/plain") // Установим тип ответа text/plain
-	res.WriteHeader(http.StatusBadRequest)         // Прошли весь массив, но хеша нет.
+	if val, ok := urlDB[id]; ok {
+		res.Header().Set("Location", string(val))     // Укажем куда редирект
+		res.WriteHeader(http.StatusTemporaryRedirect) // Передаём 307
+	} else {
+		res.WriteHeader(http.StatusBadRequest) // Прошли весь массив, но хеша нет.
+	}
 }
 
 // Хендлер / для сокращения URL. На входе принимается URL как text/plain
@@ -89,7 +86,10 @@ func shortingRequest(res http.ResponseWriter, req *http.Request) {
 }
 
 func main() {
+	//urlDB := make(map[string][]byte) // мапа для урлов, ключ - хеш, значение - URL
+	//urlDB["14"] = []byte{1, 2, 3, 4, 5}
 
+	//	_ = urlDB
 	/*
 		Вот эту всё чехарду с параметрами пришлось вытащить сюда из конфига, потому что иначе flag.Parse()
 		в ините пакета конфига подхватывает параметры при запуске юнит тестов и всё фейлится к чертям.
@@ -117,11 +117,6 @@ func main() {
 	serverName := tempV[0]
 	serverPort := tempV[1]
 	shortURLDomain = ShortBaseURL
-	//  Использовалось для отладки
-	//  fmt.Println(cfg.ServerAddress, len(cfg.ServerAddress), cfg.BaseURL, len(cfg.BaseURL))
-	//	fmt.Println("Вот такой адрес: ", ServerAddress)
-	//	fmt.Println("Вот такой URL: ", ShortBaseURL)
-	//	fmt.Println("Сокращатор будет: ", shortURLDomain)
 
 	r := chi.NewRouter()
 	r.Get("/{id}", shortingGetURL)

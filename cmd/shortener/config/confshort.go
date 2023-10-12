@@ -39,8 +39,4 @@ func init() {
 	if len((Prms)) < 1 {
 		panic("Ok")
 	}
-	//ServAddrParam := flag.String("a", "localhost:8080", "Host server address")
-	//	ShortURLBaseParam := flag.String("b", "http://localhost:8080/", "Short base address")
-	//	ServerAddress = *ServAddrParam
-	//ShortBaseURL = *ShortURLBaseParam
 }
