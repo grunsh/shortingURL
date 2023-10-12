@@ -30,7 +30,6 @@ var cfg Sconfig
 
 const hashLen int = 10 // Длина генерируемого хеша
 
-// const shortURLDomain string = "http://localhost:8080/"
 var shortURLDomain string
 
 type urlDBtype map[string][]byte
@@ -85,10 +84,6 @@ func shortingRequest(res http.ResponseWriter, req *http.Request) {
 }
 
 func main() {
-	//urlDB := make(map[string][]byte) // мапа для урлов, ключ - хеш, значение - URL
-	//urlDB["14"] = []byte{1, 2, 3, 4, 5}
-
-	//	_ = urlDB
 	/*
 		Вот эту всё чехарду с параметрами пришлось вытащить сюда из конфига, потому что иначе flag.Parse()
 		в ините пакета конфига подхватывает параметры при запуске юнит тестов и всё фейлится к чертям.
