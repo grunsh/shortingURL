@@ -3,12 +3,14 @@ package config
 var ServerAddress string
 var ShortBaseURL string
 
+// Тип для определения имени параметра, значения по-умолчанию и описания использования
 type FlagString struct {
 	name     string
 	defValue string
 	usage    string
 }
 
+// Структура, собирающая в себе все параметры
 var Prms []struct {
 	description string
 	param       FlagString
