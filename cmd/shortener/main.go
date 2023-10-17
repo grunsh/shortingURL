@@ -9,13 +9,12 @@
 package main
 
 import (
-	"flag"
-	"github.com/caarlos0/env/v6"
 	"github.com/go-chi/chi/v5"
 	"io"
 	"log"
 	"math/rand"
 	"net/http"
+	"shortingURL/cmd/shortener/config"
 	"strconv"
 	"strings"
 )
@@ -89,28 +88,19 @@ func main() {
 		в ините пакета конфига подхватывает параметры при запуске юнит тестов и всё фейлится к чертям.
 		Я пока не нашёл способа это победить, сроки жмут, уже ночь, надо 5-й инкремент сдать :(
 	*/
-	ServAddrParam := flag.String("a", "localhost:8080", "Host server address")
-	ShortURLBaseParam := flag.String("b", "http://localhost:8080/", "Short base address")
-	flag.Parse()
-	ServerAddress := *ServAddrParam
-	ShortBaseURL := *ShortURLBaseParam
-	err := env.Parse(&cfg) // Парсим переменные окружения
-	if err != nil {
-		log.Fatalf("Ну не получилось распарсить переменную окружения: %e", err)
-	}
-	if cfg.BaseURL != "" { // Если переменная окружения есть, используем её, иначе параметр или значение по-умолчанию
-		ShortBaseURL = cfg.BaseURL
-	}
-	if cfg.ServerAddress != "" { // Если переменная окружения есть, используем её, иначе параметр или значение по-умолчанию
-		ServerAddress = cfg.ServerAddress
-	}
-	if ShortBaseURL[len(ShortBaseURL)-1:] != "/" { // Накинем "/", т.к. в параметрах его не передают
-		ShortBaseURL += "/"
-	}
-	tempV := strings.Split(ServerAddress, ":")
+	/*	ServAddrParam := flag.String("a", "localhost:8080", "Host server address")
+		ShortURLBaseParam := flag.String("b", "http://localhost:8080/", "Short base address")
+		flag.Parse()
+		ServerAddress := *ServAddrParam
+		ShortBaseURL := *ShortURLBaseParam
+	*/
+	// Где-то тут надо вызвать пакетову фнукцию и получить параметры.
+	Parameters := config.GetParams()
+
+	tempV := strings.Split(Parameters.ServerAddress, ":")
 	serverName := tempV[0]
 	serverPort := tempV[1]
-	shortURLDomain = ShortBaseURL
+	shortURLDomain = Parameters.ShortBaseURL
 
 	r := chi.NewRouter()
 	r.Get("/{id}", shortingGetURL)
