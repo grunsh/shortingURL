@@ -10,13 +10,14 @@ package main
 
 import (
 	"github.com/go-chi/chi/v5"
+	"go.uber.org/zap"
 	"io"
-	"log"
 	"math/rand"
 	"net/http"
 	"shortingURL/cmd/shortener/config"
 	"strconv"
 	"strings"
+	"time"
 )
 
 // Тип для переменных окружения
@@ -25,17 +26,45 @@ type Sconfig struct {
 	BaseURL       string `env:"BASE_URL"`
 }
 
-var cfg Sconfig
+type urlDBtype map[string][]byte
+
+var (
+	cfg            Sconfig           // Переменная для объекта конфигурирования
+	shortURLDomain string            // Переменная используется в коде в разных местах, значение присваивается в начале работы их cfg
+	urlDB          = make(urlDBtype) // мапа для урлов, ключ - хеш, значение - URL
+	sugar          zap.SugaredLogger // регистратор журналов
+)
 
 const hashLen int = 10 // Длина генерируемого хеша
 
-var shortURLDomain string
-
-type urlDBtype map[string][]byte
-
-var urlDB = make(urlDBtype) // мапа для урлов, ключ - хеш, значение - URL
-
 const charset = "abcdefghijklmnopqrstuvwxyzABCDEFGHIJKLMNOPQRSTUVWXYZ" // Для генератора хэшей
+
+type (
+	// берём структуру для хранения сведений об ответе
+	responseData struct {
+		status int
+		size   int
+	}
+
+	// добавляем реализацию http.ResponseWriter
+	loggingResponseWriter struct {
+		http.ResponseWriter // встраиваем оригинальный http.ResponseWriter
+		responseData        *responseData
+	}
+)
+
+func (r *loggingResponseWriter) Write(b []byte) (int, error) {
+	// записываем ответ, используя оригинальный http.ResponseWriter
+	size, err := r.ResponseWriter.Write(b)
+	r.responseData.size += size // захватываем размер
+	return size, err
+}
+
+func (r *loggingResponseWriter) WriteHeader(statusCode int) {
+	// записываем код статуса, используя оригинальный http.ResponseWriter
+	r.ResponseWriter.WriteHeader(statusCode)
+	r.responseData.status = statusCode // захватываем код статуса
+}
 
 // Генератор сокращённого URL. Использует константу shortURLDomain как настройку.
 func addURL(url []byte) []byte {
@@ -54,6 +83,7 @@ func getHash() string {
 	return sb.String()
 }
 
+// Хендлер получения сокращённого URL. 307 и редирект, или ошибка.
 func shortingGetURL(res http.ResponseWriter, req *http.Request) {
 	id := req.URL.Path[1:]                         // Откусываем / и записываем id
 	res.Header().Set("Content-Type", "text/plain") // Установим тип ответа text/plain
@@ -79,34 +109,57 @@ func shortingRequest(res http.ResponseWriter, req *http.Request) {
 	res.Header().Set("Content-Length", strconv.Itoa(len(shrtURL)))
 	res.WriteHeader(http.StatusCreated)
 	res.Write(shrtURL)
+}
 
+// Обёртка для журналирования запросов
+func logReqInfo(h http.Handler) http.Handler {
+	logHTTPRequests := func(w http.ResponseWriter, r *http.Request) {
+		startTime := time.Now()
+		responseData := &responseData{
+			status: 0,
+			size:   0,
+		}
+		lw := loggingResponseWriter{
+			ResponseWriter: w, // встраиваем оригинальный http.ResponseWriter
+			responseData:   responseData,
+		}
+		h.ServeHTTP(&lw, r) // внедряем реализацию http.ResponseWriter
+		sugar.Infoln(
+			"uri", r.RequestURI,
+			"method", r.Method,
+			"status", responseData.status,
+			"duration", time.Since(startTime),
+			"size", responseData.size,
+		)
+	}
+	return http.HandlerFunc(logHTTPRequests)
 }
 
 func main() {
-	/*
-		Вот эту всё чехарду с параметрами пришлось вытащить сюда из конфига, потому что иначе flag.Parse()
-		в ините пакета конфига подхватывает параметры при запуске юнит тестов и всё фейлится к чертям.
-		Я пока не нашёл способа это победить, сроки жмут, уже ночь, надо 5-й инкремент сдать :(
-	*/
-	/*	ServAddrParam := flag.String("a", "localhost:8080", "Host server address")
-		ShortURLBaseParam := flag.String("b", "http://localhost:8080/", "Short base address")
-		flag.Parse()
-		ServerAddress := *ServAddrParam
-		ShortBaseURL := *ShortURLBaseParam
-	*/
+
 	// Где-то тут надо вызвать пакетову фнукцию и получить параметры.
 	Parameters := config.GetParams()
-
-	tempV := strings.Split(Parameters.ServerAddress, ":")
-	serverName := tempV[0]
-	serverPort := tempV[1]
 	shortURLDomain = Parameters.ShortBaseURL
 
+	logger, err := zap.NewDevelopment()
+	if err != nil {
+		// вызываем панику, если ошибка
+		panic(err)
+	}
+	defer logger.Sync()
+	// делаем регистратор SugaredLogger
+	sugar = *logger.Sugar()
+	sugar.Infow(
+		"Starting server",
+		"addr", Parameters.ServerAddress,
+	)
+
 	r := chi.NewRouter()
+	r.Use(logReqInfo)
 	r.Get("/{id}", shortingGetURL)
 	r.Post("/", shortingRequest)
-
-	log.Fatal(http.ListenAndServe(serverName+":"+serverPort, r))
+	http.ListenAndServe(Parameters.ServerAddress, r)
+	//	sugar.Infow(http.ListenAndServe(serverName+":"+serverPort, r).Error().)
 }
 func init() {
 }
