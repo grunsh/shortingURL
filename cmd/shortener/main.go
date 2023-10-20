@@ -40,7 +40,7 @@ const hashLen int = 10 // Длина генерируемого хеша
 const charset = "abcdefghijklmnopqrstuvwxyzABCDEFGHIJKLMNOPQRSTUVWXYZ" // Для генератора хэшей
 
 type (
-	// берём структуру для хранения сведений об ответе
+	// структура для хранения сведений об ответе
 	responseData struct {
 		status int
 		size   int
@@ -112,7 +112,7 @@ func shortingRequest(res http.ResponseWriter, req *http.Request) {
 }
 
 // Обёртка для журналирования запросов
-func logReqInfo(h http.Handler) http.Handler {
+func logHTTPInfo(h http.Handler) http.Handler {
 	logHTTPRequests := func(w http.ResponseWriter, r *http.Request) {
 		startTime := time.Now()
 		responseData := &responseData{
@@ -147,19 +147,17 @@ func main() {
 		panic(err)
 	}
 	defer logger.Sync()
-	// делаем регистратор SugaredLogger
-	sugar = *logger.Sugar()
+
+	sugar = *logger.Sugar() // делаем регистратор SugaredLogger
 	sugar.Infow(
 		"Starting server",
 		"addr", Parameters.ServerAddress,
 	)
 
 	r := chi.NewRouter()
-	r.Use(logReqInfo)
+	r.Use(logHTTPInfo) // Встраиваем логгер в роутер
 	r.Get("/{id}", shortingGetURL)
 	r.Post("/", shortingRequest)
 	http.ListenAndServe(Parameters.ServerAddress, r)
 	//	sugar.Infow(http.ListenAndServe(serverName+":"+serverPort, r).Error().)
-}
-func init() {
 }
