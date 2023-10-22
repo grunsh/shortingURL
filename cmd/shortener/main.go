@@ -9,6 +9,8 @@
 package main
 
 import (
+	"bytes"
+	"encoding/json"
 	"github.com/go-chi/chi/v5"
 	"go.uber.org/zap"
 	"io"
@@ -111,6 +113,40 @@ func shortingRequest(res http.ResponseWriter, req *http.Request) {
 	res.Write(shrtURL)
 }
 
+func shortingJSON(res http.ResponseWriter, req *http.Request) {
+	type URLReq struct { // Тип для запроса с тегом url
+		URL string `json:"url"`
+	}
+	type URLResp struct { // Тип для ответа с тегом result
+		Result string `json:"result"`
+	}
+	var reqURL URLReq
+	var respURL URLResp
+	var buf bytes.Buffer
+	_, err := buf.ReadFrom(req.Body) // Чтение тела запроса в буфер buf
+	if err != nil {
+		res.Header().Set("Content-Type", "application/json") // Установим тип ответа application/json
+		res.WriteHeader(http.StatusBadRequest)
+		return // Выход по 400 (ошибка чтения тела запроса)
+	}
+	if err = json.Unmarshal(buf.Bytes(), &reqURL); err != nil {
+		res.Header().Set("Content-Type", "application/json") // Установим тип ответа application/json
+		res.WriteHeader(http.StatusBadRequest)
+		return // Выход по 400
+	}
+	respURL.Result = string(addURL([]byte(reqURL.URL)))
+	resp, err := json.Marshal(respURL)
+	if err != nil {
+		res.Header().Set("Content-Type", "application/json") // Установим тип ответа application/json
+		res.WriteHeader(http.StatusBadRequest)
+		return // Выход по 400
+	}
+	res.Header().Set("Content-Type", "application/json") // Установим тип ответа application/json
+	res.Header().Set("Content-Length", strconv.Itoa(len(resp)))
+	res.WriteHeader(http.StatusCreated)
+	res.Write(resp)
+}
+
 // Обёртка для журналирования запросов
 func logHTTPInfo(h http.Handler) http.Handler {
 	logHTTPRequests := func(w http.ResponseWriter, r *http.Request) {
@@ -158,6 +194,7 @@ func main() {
 	r.Use(logHTTPInfo) // Встраиваем логгер в роутер
 	r.Get("/{id}", shortingGetURL)
 	r.Post("/", shortingRequest)
+	r.Post("/api/shorten", shortingJSON)
 	http.ListenAndServe(Parameters.ServerAddress, r)
 	//	sugar.Infow(http.ListenAndServe(serverName+":"+serverPort, r).Error().)
 }
