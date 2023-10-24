@@ -12,6 +12,7 @@ import (
 	"bytes"
 	"encoding/json"
 	"github.com/go-chi/chi/v5"
+	"github.com/go-chi/chi/v5/middleware"
 	"go.uber.org/zap"
 	"io"
 	"math/rand"
@@ -192,6 +193,7 @@ func main() {
 
 	r := chi.NewRouter()
 	r.Use(logHTTPInfo) // Встраиваем логгер в роутер
+	r.Use(middleware.Compress(5))
 	r.Get("/{id}", shortingGetURL)
 	r.Post("/", shortingRequest)
 	r.Post("/api/shorten", shortingJSON)
