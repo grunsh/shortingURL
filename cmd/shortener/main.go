@@ -10,9 +10,9 @@ package main
 
 import (
 	"bytes"
+	"compress/gzip"
 	"encoding/json"
 	"github.com/go-chi/chi/v5"
-	"github.com/go-chi/chi/v5/middleware"
 	"go.uber.org/zap"
 	"io"
 	"math/rand"
@@ -54,7 +54,18 @@ type (
 		http.ResponseWriter // встраиваем оригинальный http.ResponseWriter
 		responseData        *responseData
 	}
+
+	// Тип с интерфейсом ResponseWriter для компрессии
+	gzipWriter struct {
+		http.ResponseWriter
+		Writer io.Writer
+	}
 )
+
+func (w gzipWriter) Write(b []byte) (int, error) {
+	// w.Writer будет отвечать за gzip-сжатие, поэтому пишем в него
+	return w.Writer.Write(b)
+}
 
 func (r *loggingResponseWriter) Write(b []byte) (int, error) {
 	// записываем ответ, используя оригинальный http.ResponseWriter
@@ -172,6 +183,33 @@ func logHTTPInfo(h http.Handler) http.Handler {
 	return http.HandlerFunc(logHTTPRequests)
 }
 
+func compressExchange(h http.Handler) http.Handler {
+	return http.HandlerFunc(func(rw http.ResponseWriter, r *http.Request) {
+		// проверяем, что клиент поддерживает gzip-сжатие
+		// это упрощённый пример. В реальном приложении следует проверять все
+		// значения r.Header.Values("Accept-Encoding") и разбирать строку
+		// на составные части, чтобы избежать неожиданных результатов
+		if !strings.Contains(r.Header.Get("Accept-Encoding"), "gzip") {
+			// если gzip не поддерживается, передаём управление
+			// дальше без изменений
+			h.ServeHTTP(rw, r)
+			return
+		}
+
+		// создаём gzip.Writer поверх текущего w
+		gz, err := gzip.NewWriterLevel(rw, gzip.BestSpeed)
+		if err != nil {
+			io.WriteString(rw, err.Error())
+			return
+		}
+		defer gz.Close()
+
+		rw.Header().Set("Content-Encoding", "gzip")
+		// передаём обработчику страницы переменную типа gzipWriter для вывода данных
+		h.ServeHTTP(gzipWriter{ResponseWriter: rw, Writer: gz}, r)
+	})
+}
+
 func main() {
 
 	// Где-то тут надо вызвать пакетову фнукцию и получить параметры.
@@ -193,7 +231,7 @@ func main() {
 
 	r := chi.NewRouter()
 	r.Use(logHTTPInfo) // Встраиваем логгер в роутер
-	r.Use(middleware.Compress(5))
+	r.Use(compressExchange)
 	r.Get("/{id}", shortingGetURL)
 	r.Post("/", shortingRequest)
 	r.Post("/api/shorten", shortingJSON)
