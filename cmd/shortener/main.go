@@ -12,6 +12,7 @@ import (
 	"bytes"
 	"compress/gzip"
 	"encoding/json"
+	"fmt"
 	"github.com/go-chi/chi/v5"
 	"go.uber.org/zap"
 	"io"
@@ -58,13 +59,14 @@ type (
 	// Тип с интерфейсом ResponseWriter для компрессии
 	gzipWriter struct {
 		http.ResponseWriter
-		Writer io.Writer
+		Wr io.Writer
 	}
 )
 
 func (w gzipWriter) Write(b []byte) (int, error) {
-	// w.Writer будет отвечать за gzip-сжатие, поэтому пишем в него
-	return w.Writer.Write(b)
+	fmt.Println("gzipWriter: ", string(b))
+	w.Header().Del("Content-Length")
+	return w.Wr.Write(b)
 }
 
 func (r *loggingResponseWriter) Write(b []byte) (int, error) {
@@ -84,6 +86,7 @@ func (r *loggingResponseWriter) WriteHeader(statusCode int) {
 func addURL(url []byte) []byte {
 	hash := getHash()
 	urlDB[hash] = url
+	fmt.Println(" ------ ", shortURLDomain+hash, string(url))
 	return []byte(shortURLDomain + hash)
 }
 
@@ -109,7 +112,7 @@ func shortingGetURL(res http.ResponseWriter, req *http.Request) {
 	}
 }
 
-// Хендлер / для сокращения URL. На входе принимается URL как text/plain
+// Хендлер для сокращения URL. На входе принимается URL как text/plain
 func shortingRequest(res http.ResponseWriter, req *http.Request) {
 	data, err := io.ReadAll(req.Body)
 	req.Body.Close()
@@ -122,6 +125,7 @@ func shortingRequest(res http.ResponseWriter, req *http.Request) {
 	res.Header().Set("Content-Type", "text/plain") // Установим тип ответа text/plain
 	res.Header().Set("Content-Length", strconv.Itoa(len(shrtURL)))
 	res.WriteHeader(http.StatusCreated)
+	fmt.Println("shotringRequest: ", string(shrtURL))
 	res.Write(shrtURL)
 }
 
@@ -184,29 +188,25 @@ func logHTTPInfo(h http.Handler) http.Handler {
 }
 
 func compressExchange(h http.Handler) http.Handler {
-	return http.HandlerFunc(func(rw http.ResponseWriter, r *http.Request) {
+	return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		// проверяем, что клиент поддерживает gzip-сжатие
-		// это упрощённый пример. В реальном приложении следует проверять все
-		// значения r.Header.Values("Accept-Encoding") и разбирать строку
-		// на составные части, чтобы избежать неожиданных результатов
 		if !strings.Contains(r.Header.Get("Accept-Encoding"), "gzip") {
-			// если gzip не поддерживается, передаём управление
-			// дальше без изменений
-			h.ServeHTTP(rw, r)
+			h.ServeHTTP(w, r)
+			fmt.Println("gzip нет")
 			return
 		}
 
 		// создаём gzip.Writer поверх текущего w
-		gz, err := gzip.NewWriterLevel(rw, gzip.BestSpeed)
+		gz, err := gzip.NewWriterLevel(w, gzip.BestSpeed)
+		defer gz.Close()
 		if err != nil {
-			io.WriteString(rw, err.Error())
+			io.WriteString(w, err.Error())
 			return
 		}
-		defer gz.Close()
 
-		rw.Header().Set("Content-Encoding", "gzip")
+		w.Header().Set("Content-Encoding", "gzip")
 		// передаём обработчику страницы переменную типа gzipWriter для вывода данных
-		h.ServeHTTP(gzipWriter{ResponseWriter: rw, Writer: gz}, r)
+		h.ServeHTTP(gzipWriter{ResponseWriter: w, Wr: gz}, r)
 	})
 }
 
@@ -230,8 +230,8 @@ func main() {
 	)
 
 	r := chi.NewRouter()
-	r.Use(logHTTPInfo) // Встраиваем логгер в роутер
 	r.Use(compressExchange)
+	r.Use(logHTTPInfo) // Встраиваем логгер в роутер
 	r.Get("/{id}", shortingGetURL)
 	r.Post("/", shortingRequest)
 	r.Post("/api/shorten", shortingJSON)
