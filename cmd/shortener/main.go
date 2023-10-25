@@ -198,11 +198,11 @@ func compressExchange(h http.Handler) http.Handler {
 
 		// создаём gzip.Writer поверх текущего w
 		gz, err := gzip.NewWriterLevel(w, gzip.BestSpeed)
-		defer gz.Close()
 		if err != nil {
 			io.WriteString(w, err.Error())
 			return
 		}
+		defer gz.Close()
 
 		w.Header().Set("Content-Encoding", "gzip")
 		// передаём обработчику страницы переменную типа gzipWriter для вывода данных
