@@ -196,6 +196,10 @@ func logHTTPInfo(h http.Handler) http.Handler {
 func compressExchange(next http.Handler) http.Handler {
 	return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		// проверяем, что клиент поддерживает gzip-сжатие
+		if r.Method == http.MethodGet {
+			next.ServeHTTP(w, r)
+			return
+		}
 		if !strings.Contains(r.Header.Get("Accept-Encoding"), "gzip") {
 			next.ServeHTTP(w, r)
 			fmt.Println("gzip нет")
