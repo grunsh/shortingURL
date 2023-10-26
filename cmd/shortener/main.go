@@ -103,7 +103,8 @@ func getHash() string {
 // Хендлер получения сокращённого URL. 307 и редирект, или ошибка.
 func shortingGetURL(res http.ResponseWriter, req *http.Request) {
 	id := req.URL.Path[1:] // Откусываем / и записываем id
-	fmt.Println("shortingGetURL")
+	//fmt.Println("shortingGetURL")
+	res.Header().Del("Content-Encoding")
 	res.Header().Set("Content-Type", "text/plain") // Установим тип ответа text/plain
 	if val, ok := urlDB[id]; ok {
 		res.Header().Set("Location", string(val))     // Укажем куда редирект
