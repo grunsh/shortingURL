@@ -59,14 +59,15 @@ type (
 	// Тип с интерфейсом ResponseWriter для компрессии
 	gzipWriter struct {
 		http.ResponseWriter
-		Wr io.Writer
+		Writer io.Writer
+		//		gz1    *gzip.Writer
 	}
 )
 
 func (w gzipWriter) Write(b []byte) (int, error) {
 	fmt.Println("gzipWriter: ", string(b))
-	w.Header().Del("Content-Length")
-	return w.Wr.Write(b)
+	n, err := w.Writer.Write(b)
+	return n, err
 }
 
 func (r *loggingResponseWriter) Write(b []byte) (int, error) {
@@ -102,7 +103,8 @@ func getHash() string {
 
 // Хендлер получения сокращённого URL. 307 и редирект, или ошибка.
 func shortingGetURL(res http.ResponseWriter, req *http.Request) {
-	id := req.URL.Path[1:]                         // Откусываем / и записываем id
+	id := req.URL.Path[1:] // Откусываем / и записываем id
+	fmt.Println("shortingGetURL")
 	res.Header().Set("Content-Type", "text/plain") // Установим тип ответа text/plain
 	if val, ok := urlDB[id]; ok {
 		res.Header().Set("Location", string(val))     // Укажем куда редирект
@@ -123,10 +125,13 @@ func shortingRequest(res http.ResponseWriter, req *http.Request) {
 	}
 	shrtURL := addURL(data)
 	res.Header().Set("Content-Type", "text/plain") // Установим тип ответа text/plain
-	res.Header().Set("Content-Length", strconv.Itoa(len(shrtURL)))
+	//res.Header().Set("Content-Length", strconv.Itoa(len(shrtURL)))
+	res.Header().Set("Content-Encoding", "gzip")
+
 	res.WriteHeader(http.StatusCreated)
 	fmt.Println("shotringRequest: ", string(shrtURL))
-	res.Write(shrtURL)
+	bi, _ := res.Write(shrtURL)
+	res.Header().Set("Content-Length", strconv.Itoa(bi))
 }
 
 func shortingJSON(res http.ResponseWriter, req *http.Request) {
@@ -187,11 +192,11 @@ func logHTTPInfo(h http.Handler) http.Handler {
 	return http.HandlerFunc(logHTTPRequests)
 }
 
-func compressExchange(h http.Handler) http.Handler {
+func compressExchange(next http.Handler) http.Handler {
 	return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		// проверяем, что клиент поддерживает gzip-сжатие
 		if !strings.Contains(r.Header.Get("Accept-Encoding"), "gzip") {
-			h.ServeHTTP(w, r)
+			next.ServeHTTP(w, r)
 			fmt.Println("gzip нет")
 			return
 		}
@@ -203,10 +208,10 @@ func compressExchange(h http.Handler) http.Handler {
 			return
 		}
 		defer gz.Close()
-
-		w.Header().Set("Content-Encoding", "gzip")
 		// передаём обработчику страницы переменную типа gzipWriter для вывода данных
-		h.ServeHTTP(gzipWriter{ResponseWriter: w, Wr: gz}, r)
+		w.Header().Set("Content-Encoding", "gzip")
+		//		w.WriteHeader(http.StatusAlreadyReported)
+		next.ServeHTTP(gzipWriter{ResponseWriter: w, Writer: gz}, r)
 	})
 }
 
@@ -231,10 +236,11 @@ func main() {
 
 	r := chi.NewRouter()
 	r.Use(compressExchange)
+	//	r.Use(middleware.Compress(5, "gzip"))
 	r.Use(logHTTPInfo) // Встраиваем логгер в роутер
 	r.Get("/{id}", shortingGetURL)
 	r.Post("/", shortingRequest)
 	r.Post("/api/shorten", shortingJSON)
 	http.ListenAndServe(Parameters.ServerAddress, r)
-	//	sugar.Infow(http.ListenAndServe(serverName+":"+serverPort, r).Error().)
+	//sugar.Infow(http.ListenAndServe(serverName+":"+serverPort, r).Error().)
 }
