@@ -19,7 +19,6 @@ import (
 	"math/rand"
 	"net/http"
 	"shortingURL/cmd/shortener/config"
-	"strconv"
 	"strings"
 	"time"
 )
@@ -126,12 +125,13 @@ func shortingRequest(res http.ResponseWriter, req *http.Request) {
 	shrtURL := addURL(data)
 	res.Header().Set("Content-Type", "text/plain") // Установим тип ответа text/plain
 	//res.Header().Set("Content-Length", strconv.Itoa(len(shrtURL)))
-	res.Header().Set("Content-Encoding", "gzip")
+	//	res.Header().Set("Content-Encoding", "gzip")
 
 	res.WriteHeader(http.StatusCreated)
 	fmt.Println("shotringRequest: ", string(shrtURL))
-	bi, _ := res.Write(shrtURL)
-	res.Header().Set("Content-Length", strconv.Itoa(bi))
+	res.Write(shrtURL)
+	//bi, _ := res.Write(shrtURL)
+	//res.Header().Set("Content-Length", strconv.Itoa(bi))
 }
 
 func shortingJSON(res http.ResponseWriter, req *http.Request) {
@@ -163,7 +163,7 @@ func shortingJSON(res http.ResponseWriter, req *http.Request) {
 		return // Выход по 400
 	}
 	res.Header().Set("Content-Type", "application/json") // Установим тип ответа application/json
-	res.Header().Set("Content-Length", strconv.Itoa(len(resp)))
+	//	res.Header().Set("Content-Length", strconv.Itoa(len(resp)))
 	res.WriteHeader(http.StatusCreated)
 	res.Write(resp)
 }
