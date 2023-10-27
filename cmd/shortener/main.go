@@ -68,9 +68,7 @@ type (
 )
 
 func (w gzipWriter) Write(b []byte) (int, error) {
-	fmt.Println("gzipWriter: ", string(b))
-	n, err := w.Writer.Write(b)
-	return n, err
+	return w.Writer.Write(b)
 }
 
 func newCompressReader(r io.ReadCloser) (*gzipReader, error) {
@@ -78,7 +76,6 @@ func newCompressReader(r io.ReadCloser) (*gzipReader, error) {
 	if err != nil {
 		return nil, err
 	}
-
 	return &gzipReader{
 		r:  r,
 		zr: zr,
@@ -113,7 +110,6 @@ func (r *loggingResponseWriter) WriteHeader(statusCode int) {
 func addURL(url []byte) []byte {
 	hash := getHash()
 	urlDB[hash] = url
-	fmt.Println(" ------ ", shortURLDomain+hash, string(url))
 	return []byte(shortURLDomain + hash)
 }
 
@@ -152,14 +148,9 @@ func shortingRequest(res http.ResponseWriter, req *http.Request) {
 	}
 	shrtURL := addURL(data)
 	res.Header().Set("Content-Type", "text/plain") // Установим тип ответа text/plain
-	//res.Header().Set("Content-Length", strconv.Itoa(len(shrtURL)))
-	//	res.Header().Set("Content-Encoding", "gzip")
-
 	res.WriteHeader(http.StatusCreated)
 	fmt.Println("shotringRequest: ", string(shrtURL))
 	res.Write(shrtURL)
-	//bi, _ := res.Write(shrtURL)
-	//res.Header().Set("Content-Length", strconv.Itoa(bi))
 }
 
 func shortingJSON(res http.ResponseWriter, req *http.Request) {
@@ -220,44 +211,38 @@ func logHTTPInfo(h http.Handler) http.Handler {
 	return http.HandlerFunc(logHTTPRequests)
 }
 
+// миддлварь-сжиматор тельца ответа и разжиматор тельца запросов
 func compressExchange(next http.Handler) http.Handler {
 	return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
-		// проверяем, что клиент поддерживает gzip-сжатие
-		if strings.Contains(r.Header.Get("Content-Encoding"), "gzip") {
+		if strings.Contains(r.Header.Get("Content-Encoding"), "gzip") { // если вдруг нам передали сжатое, разжимаем
 			cr, err := newCompressReader(r.Body)
 			if err != nil {
 				w.WriteHeader(http.StatusInternalServerError)
 				return
 			}
-			// меняем тело запроса на новое
-			r.Body = cr
+			r.Body = cr // меняем тело запроса на новое
 			defer cr.Close()
-			//			return
-
 		}
-		if !strings.Contains(r.Header.Get("Accept-Encoding"), "gzip") {
+
+		if !strings.Contains(r.Header.Get("Accept-Encoding"), "gzip") { // если нам не передали свою готовность к принятию сжатого, просто выходим.
 			next.ServeHTTP(w, r)
-			fmt.Println("gzip нет")
 			return
 		}
 
-		// создаём gzip.Writer поверх текущего w
-		gz, err := gzip.NewWriterLevel(w, gzip.BestSpeed)
+		gz, err := gzip.NewWriterLevel(w, gzip.BestSpeed) // создаём gzip.Writer поверх текущего w
 		if err != nil {
 			io.WriteString(w, err.Error())
 			return
 		}
 		defer gz.Close()
-		// передаём обработчику страницы переменную типа gzipWriter для вывода данных
 		w.Header().Set("Content-Encoding", "gzip")
-		//		w.WriteHeader(http.StatusAlreadyReported)
+		// передаём обработчику страницы переменную типа gzipWriter для вывода данных
 		next.ServeHTTP(gzipWriter{ResponseWriter: w, Writer: gz}, r)
 	})
 }
 
 func main() {
 
-	// Где-то тут надо вызвать пакетову фнукцию и получить параметры.
 	Parameters := config.GetParams()
 	shortURLDomain = Parameters.ShortBaseURL
 
@@ -275,9 +260,8 @@ func main() {
 	)
 
 	r := chi.NewRouter()
-	r.Use(compressExchange)
-	//	r.Use(middleware.Compress(5, "gzip"))
-	r.Use(logHTTPInfo) // Встраиваем логгер в роутер
+	r.Use(compressExchange) // Встраиваем сжиматор-разжиматор
+	r.Use(logHTTPInfo)      // Встраиваем логгер в роутер
 	r.Get("/{id}", shortingGetURL)
 	r.Post("/", shortingRequest)
 	r.Post("/api/shorten", shortingJSON)
