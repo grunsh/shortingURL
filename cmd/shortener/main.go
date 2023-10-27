@@ -9,8 +9,6 @@
 package main
 
 import (
-	"bufio"
-	_ "bufio"
 	"bytes"
 	"compress/gzip"
 	"encoding/json"
@@ -20,7 +18,6 @@ import (
 	"io"
 	"math/rand"
 	"net/http"
-	"os"
 	"shortingURL/cmd/shortener/config"
 	"strings"
 	"time"
@@ -32,33 +29,18 @@ type Sconfig struct {
 	BaseURL       string `env:"BASE_URL"`
 }
 
-type urlType struct {
-	uuid uint
-	url  []byte
-}
-
-type urlDBtype map[string]*urlType
+type urlDBtype map[string][]byte
 
 var (
-	cfg            Sconfig               // Переменная для объекта конфигурирования
-	shortURLDomain string                // Переменная используется в коде в разных местах, значение присваивается в начале работы их cfg
-	urlDB          = make(urlDBtype)     // мапа для урлов, ключ - хеш
-	sugar          zap.SugaredLogger     // регистратор журналов
-	SeaqunceId     uint              = 0 // Используем для генератора uuid URL
-	urlFile        *URLsDB
+	cfg            Sconfig           // Переменная для объекта конфигурирования
+	shortURLDomain string            // Переменная используется в коде в разных местах, значение присваивается в начале работы их cfg
+	urlDB          = make(urlDBtype) // мапа для урлов, ключ - хеш, значение - URL
+	sugar          zap.SugaredLogger // регистратор журналов
 )
 
 const hashLen int = 10 // Длина генерируемого хеша
 
 const charset = "abcdefghijklmnopqrstuvwxyzABCDEFGHIJKLMNOPQRSTUVWXYZ" // Для генератора хэшей
-
-// Для файло с урлами
-type URLsDB struct {
-	file    *os.File
-	encoder *json.Encoder
-	decoder *json.Decoder
-	sc      *bufio.Scanner
-}
 
 type (
 	// структура для хранения сведений об ответе
@@ -79,17 +61,9 @@ type (
 		Writer io.Writer
 	}
 
-	//  Разжиматор сжатого
 	gzipReader struct {
 		r  io.ReadCloser
 		zr *gzip.Reader
-	}
-
-	// Структура хранения данных URL в файле
-	URL struct {
-		uuid     uint   `json:"uuid"`
-		shortURL string `json:"short_url"`
-		URL      string `json:"original_url"`
 	}
 )
 
@@ -106,11 +80,6 @@ func newCompressReader(r io.ReadCloser) (*gzipReader, error) {
 		r:  r,
 		zr: zr,
 	}, nil
-}
-
-func nextId() uint { // Генерилка сиквенса
-	SeaqunceId += 1
-	return SeaqunceId
 }
 
 func (c gzipReader) Read(p []byte) (n int, err error) {
@@ -137,12 +106,10 @@ func (r *loggingResponseWriter) WriteHeader(statusCode int) {
 	r.responseData.status = statusCode // захватываем код статуса
 }
 
-// Генератор сокращённого URL. Использует константу shortURLDomain как настройку
+// Генератор сокращённого URL. Использует константу shortURLDomain как настройку.
 func addURL(url []byte) []byte {
 	hash := getHash()
-	urlDB[hash].url = url
-	urlDB[hash].uuid = nextId()
-	//urlFile.WriteURL(URL{urlDB[hash].uuid, hash, string(url)})
+	urlDB[hash] = url
 	return []byte(shortURLDomain + hash)
 }
 
@@ -163,7 +130,7 @@ func shortingGetURL(res http.ResponseWriter, req *http.Request) {
 	res.Header().Del("Content-Encoding")
 	res.Header().Set("Content-Type", "text/plain") // Установим тип ответа text/plain
 	if val, ok := urlDB[id]; ok {
-		res.Header().Set("Location", string(val.url)) // Укажем куда редирект
+		res.Header().Set("Location", string(val))     // Укажем куда редирект
 		res.WriteHeader(http.StatusTemporaryRedirect) // Передаём 307
 	} else {
 		res.WriteHeader(http.StatusBadRequest) // Прошли весь массив, но хеша нет.
@@ -274,43 +241,10 @@ func compressExchange(next http.Handler) http.Handler {
 	})
 }
 
-func URLsDBfile(fileName string) (*URLsDB, error) {
-	file, err := os.OpenFile(fileName, os.O_RDONLY|os.O_CREATE|os.O_APPEND, 0666)
-	if err != nil {
-		return nil, err
-	}
-	fmt.Println("debug: ", file)
-	return &URLsDB{
-		file:    file,
-		encoder: json.NewEncoder(file),
-		decoder: json.NewDecoder(file),
-		sc:      bufio.NewScanner(file),
-	}, nil
-}
-
-func (u *URLsDB) WriteURL(url URL) error {
-	return u.encoder.Encode(&url)
-}
-
-func (u *URLsDB) ReadURL() ([]byte, error) {
-	// одиночное сканирование до следующей строки
-	if !u.sc.Scan() {
-		return nil, u.sc.Err()
-	}
-	// читаем данные из scanner
-	url := u.sc.Bytes()
-	return url, nil
-}
-func (u *URLsDB) Close() error {
-	// закрываем файл
-	return u.file.Close()
-}
-
 func main() {
 
 	Parameters := config.GetParams()
 	shortURLDomain = Parameters.ShortBaseURL
-	storageFileName := Parameters.FileStoragePath
 
 	logger, err := zap.NewDevelopment()
 	if err != nil {
@@ -318,25 +252,8 @@ func main() {
 		panic(err)
 	}
 	defer logger.Sync()
+
 	sugar = *logger.Sugar() // делаем регистратор SugaredLogger
-
-	// Пытаемся читать урлы, если они вообще есть
-	urlFile, _ = URLsDBfile(storageFileName)
-	fmt.Println(storageFileName)
-	//	sc := bufio.NewScanner(urlFile)
-	fmt.Println(urlFile)
-	//for sc.Scan() {
-	//	fmt.Println(sc.Text())
-	//}
-	if err != nil {
-		sugar.Infow(
-			"Очень всё плохо с тем, чтобы прочитать урлы: ",
-			"путь: ", Parameters.FileStoragePath,
-			"косяк: ", err,
-		)
-	}
-	urlFile.Close()
-
 	sugar.Infow(
 		"Starting server",
 		"addr", Parameters.ServerAddress,
