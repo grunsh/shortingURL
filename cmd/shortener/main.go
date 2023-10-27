@@ -137,7 +137,7 @@ func (r *loggingResponseWriter) WriteHeader(statusCode int) {
 	r.responseData.status = statusCode // захватываем код статуса
 }
 
-// Генератор сокращённого URL. Использует константу shortURLDomain как настройку.
+// Генератор сокращённого URL. Использует константу shortURLDomain как настройку
 func addURL(url []byte) []byte {
 	hash := getHash()
 	urlDB[hash].url = url
