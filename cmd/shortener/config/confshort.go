@@ -88,7 +88,7 @@ func init() {
 			description: "Параметр файла хранения URL",
 			param: FlagString{
 				name:     "f",
-				defValue: "/tmp/short-url-db.json",
+				defValue: "short-url-db.json",
 				usage:    "файл хранитель урлов",
 			},
 		},

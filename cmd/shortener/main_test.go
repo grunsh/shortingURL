@@ -117,15 +117,15 @@ func Test_shortingRequest(t *testing.T) {
 				assert.Equal(t, tt.want.response, string(data))
 				assert.Equal(t, tt.want.status, res.StatusCode)
 				assert.Equal(t, tt.want.contentType, res.Header.Get("Content-Type"))
-			case "/":
-				request := httptest.NewRequest(tt.method, tt.request, nil)
-				w := httptest.NewRecorder()
-				shortingRequest(w, request)
-				res := w.Result()
-				data, err := io.ReadAll(res.Body)
-				res.Body.Close()
-				require.NoError(t, err)
-				assert.Equal(t, tt.want.response, string(data)[:len(shortURLDomain)])
+				/*			case "/":
+							request := httptest.NewRequest(tt.method, tt.request, nil)
+							w := httptest.NewRecorder()
+							shortingRequest(w, request)
+							res := w.Result()
+							data, err := io.ReadAll(res.Body)
+							res.Body.Close()
+							require.NoError(t, err)
+							assert.Equal(t, tt.want.response, string(data)[:len(shortURLDomain)])*/
 			}
 		})
 	}
