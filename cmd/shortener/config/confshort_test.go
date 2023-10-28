@@ -6,7 +6,7 @@ import (
 )
 
 func TestParams(t *testing.T) {
-	assert.Equal(t, 2, len(Prms))
+	assert.Equal(t, 3, len(Prms))
 	assert.Equal(t, "a", Prms[0].param.name)
 	assert.Equal(t, "localhost:8080", Prms[0].param.defValue)
 	assert.Equal(t, "b", Prms[1].param.name)
