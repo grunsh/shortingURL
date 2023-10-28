@@ -146,6 +146,7 @@ func getHash() string {
 	return sb.String()
 }
 
+// Генератор следующего uuid для базы урлов.
 func nextSeaquenceID() uint {
 	SequenceUUID += 1
 	return SequenceUUID
