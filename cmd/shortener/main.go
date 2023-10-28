@@ -26,12 +26,6 @@ import (
 	"time"
 )
 
-// Тип для переменных окружения
-type Sconfig struct {
-	ServerAddress string `env:"SERVER_ADDRESS"`
-	BaseURL       string `env:"BASE_URL"`
-}
-
 type URLrecord struct {
 	ID   uint   `json:"uuid"`
 	HASH string `json:"short_url"`
@@ -386,6 +380,10 @@ func main() {
 	r.Get("/{id}", shortingGetURL)
 	r.Post("/", shortingRequest)
 	r.Post("/api/shorten", shortingJSON)
-	http.ListenAndServe(Parameters.ServerAddress, r)
+	err14 := http.ListenAndServe(Parameters.ServerAddress, r)
+	if err14 != nil {
+		// вызываем панику, если ошибка
+		panic(err)
+	}
 	//sugar.Infow(http.ListenAndServe(serverName+":"+serverPort, r).Error().)
 }
