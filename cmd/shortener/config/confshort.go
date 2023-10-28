@@ -2,13 +2,14 @@ package config
 
 import (
 	"flag"
+	"fmt"
 	"github.com/caarlos0/env/v6"
 	"log"
 )
 
 var cfg Sconfig
 
-type parameters struct {
+type Parameters struct {
 	ServerAddress   string
 	ShortBaseURL    string
 	FileStoragePath string
@@ -33,8 +34,8 @@ var Prms []struct {
 	param       FlagString
 }
 
-func GetParams() parameters {
-	var p parameters
+func GetParams() Parameters {
+	var p Parameters
 	serverAddress := flag.String(Prms[0].param.name, Prms[0].param.defValue, Prms[0].param.usage)
 	shortURLBaseParam := flag.String(Prms[1].param.name, Prms[1].param.defValue, Prms[1].param.usage)
 	fileStoragePath := flag.String(Prms[2].param.name, Prms[2].param.defValue, Prms[2].param.usage)
@@ -43,6 +44,7 @@ func GetParams() parameters {
 	p.ShortBaseURL = *shortURLBaseParam
 	p.FileStoragePath = *fileStoragePath
 	err := env.Parse(&cfg) // Парсим переменные окружения
+	fmt.Print(cfg)
 	if err != nil {
 		log.Fatalf("Ну не получилось распарсить переменную окружения: %e", err)
 	}
@@ -53,7 +55,7 @@ func GetParams() parameters {
 		p.ServerAddress = cfg.ServerAddress
 	}
 	if cfg.FileStoragePath != "" { // Если переменная окружения есть, используем её, иначе параметр или значение по-умолчанию
-		p.ServerAddress = cfg.ServerAddress
+		p.FileStoragePath = cfg.FileStoragePath
 	}
 	if p.ShortBaseURL[len(p.ShortBaseURL)-1:] != "/" { // Накинем "/", т.к. в параметрах его не передают
 		p.ShortBaseURL += "/"
