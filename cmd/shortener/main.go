@@ -41,11 +41,12 @@ type URLrecord struct {
 type urlDBtype map[string]URLrecord
 
 var (
-	cfg            Sconfig           // Переменная для объекта конфигурирования
-	shortURLDomain string            // Переменная используется в коде в разных местах, значение присваивается в начале работы их cfg
-	urlDB          = make(urlDBtype) // мапа для урлов, ключ - хеш, значение - URL
-	sugar          zap.SugaredLogger // регистратор журналов
-	fileStorage    string            //имя файла с црлами
+	cfg            Sconfig               // Переменная для объекта конфигурирования
+	shortURLDomain string                // Переменная используется в коде в разных местах, значение присваивается в начале работы их cfg
+	urlDB          = make(urlDBtype)     // мапа для урлов, ключ - хеш, значение - URL
+	sugar          zap.SugaredLogger     // регистратор журналов
+	fileStorage    string                //имя файла с црлами
+	SequenceUUID   uint              = 0 // Для генерации uuid в файле урлов
 )
 
 const hashLen int = 10 // Длина генерируемого хеша
@@ -125,7 +126,7 @@ func addURL(url []byte) []byte {
 	defer Producer.Close()
 	hash := getHash()
 	u := URLrecord{
-		ID:   1,
+		ID:   nextSeaquenceID(),
 		HASH: hash,
 		URL:  string(url),
 	}
@@ -143,6 +144,11 @@ func getHash() string {
 		sb.WriteByte(charset[rand.Intn(len(charset))])
 	}
 	return sb.String()
+}
+
+func nextSeaquenceID() uint {
+	SequenceUUID += 1
+	return SequenceUUID
 }
 
 // Хендлер получения сокращённого URL. 307 и редирект, или ошибка.
@@ -361,8 +367,11 @@ func main() {
 	defer Consumer.Close()
 
 	u, _ := Consumer.ReadURL()
+	SequenceUUID = u.ID
 	for u != nil {
-		fmt.Println(u.ID, u.HASH, u.URL)
+		if u.ID > SequenceUUID {
+			SequenceUUID = u.ID
+		}
 		urlDB[u.HASH] = *u
 		u, _ = Consumer.ReadURL()
 	}
@@ -379,14 +388,6 @@ func main() {
 		"Starting server",
 		"addr", Parameters.ServerAddress,
 	)
-
-	v := URLrecord{
-		ID:   1,
-		HASH: "____sdfsdf33333sdfs",
-		URL:  "wwwtyut",
-	}
-	Producer.WriteURL(&v)
-
 	r := chi.NewRouter()
 	r.Use(compressExchange) // Встраиваем сжиматор-разжиматор
 	r.Use(logHTTPInfo)      // Встраиваем логгер в роутер
