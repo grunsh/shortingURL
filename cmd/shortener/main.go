@@ -126,7 +126,7 @@ func addURL(url []byte) []byte {
 	defer Producer.Close()
 	hash := getHash()
 	u := URLrecord{
-		ID:   nextSeaquenceID(),
+		ID:   nextSequenceID(),
 		HASH: hash,
 		URL:  string(url),
 	}
@@ -147,7 +147,7 @@ func getHash() string {
 }
 
 // Генератор следующего uuid для базы урлов.
-func nextSeaquenceID() uint {
+func nextSequenceID() uint {
 	SequenceUUID += 1
 	return SequenceUUID
 }
@@ -368,7 +368,9 @@ func main() {
 	defer Consumer.Close()
 
 	u, _ := Consumer.ReadURL()
-	SequenceUUID = u.ID
+	if u != nil {
+		SequenceUUID = u.ID
+	}
 	for u != nil {
 		if u.ID > SequenceUUID {
 			SequenceUUID = u.ID
