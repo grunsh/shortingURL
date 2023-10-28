@@ -2,7 +2,6 @@ package config
 
 import (
 	"flag"
-	"fmt"
 	"github.com/caarlos0/env/v6"
 	"log"
 )
@@ -44,7 +43,6 @@ func GetParams() Parameters {
 	p.ShortBaseURL = *shortURLBaseParam
 	p.FileStoragePath = *fileStoragePath
 	err := env.Parse(&cfg) // Парсим переменные окружения
-	fmt.Print(cfg)
 	if err != nil {
 		log.Fatalf("Ну не получилось распарсить переменную окружения: %e", err)
 	}

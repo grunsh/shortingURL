@@ -41,7 +41,6 @@ type URLrecord struct {
 type urlDBtype map[string]URLrecord
 
 var (
-	cfg            Sconfig               // Переменная для объекта конфигурирования
 	shortURLDomain string                // Переменная используется в коде в разных местах, значение присваивается в начале работы их cfg
 	urlDB          = make(urlDBtype)     // мапа для урлов, ключ - хеш, значение - URL
 	sugar          zap.SugaredLogger     // регистратор журналов
@@ -132,7 +131,6 @@ func addURL(url []byte) []byte {
 	}
 	urlDB[hash] = u
 	Producer.WriteURL(&u)
-
 	return []byte(shortURLDomain + hash)
 }
 
@@ -155,7 +153,6 @@ func nextSequenceID() uint {
 // Хендлер получения сокращённого URL. 307 и редирект, или ошибка.
 func shortingGetURL(res http.ResponseWriter, req *http.Request) {
 	id := req.URL.Path[1:] // Откусываем / и записываем id
-	//fmt.Println("shortingGetURL")
 	res.Header().Del("Content-Encoding")
 	res.Header().Set("Content-Type", "text/plain") // Установим тип ответа text/plain
 	if val, ok := urlDB[id]; ok {
@@ -178,7 +175,6 @@ func shortingRequest(res http.ResponseWriter, req *http.Request) {
 	shrtURL := addURL(data)
 	res.Header().Set("Content-Type", "text/plain") // Установим тип ответа text/plain
 	res.WriteHeader(http.StatusCreated)
-	fmt.Println("shotringRequest: ", string(shrtURL))
 	res.Write(shrtURL)
 }
 
@@ -280,7 +276,6 @@ func NewProducer(fileName string) (*Producer, error) {
 	if err != nil {
 		return nil, err
 	}
-
 	return &Producer{
 		file:   file,
 		writer: bufio.NewWriter(file),
@@ -317,7 +312,6 @@ func NewConsumer(filename string) (*Consumer, error) {
 	if err != nil {
 		return nil, err
 	}
-
 	return &Consumer{
 		file: file,
 		// создаём новый scanner
@@ -332,13 +326,11 @@ func (c *Consumer) ReadURL() (*URLrecord, error) {
 	}
 	// читаем данные из scanner
 	data := c.scanner.Bytes()
-
 	url := URLrecord{}
 	err := json.Unmarshal(data, &url)
 	if err != nil {
 		return nil, err
 	}
-
 	return &url, nil
 }
 
@@ -368,9 +360,6 @@ func main() {
 	defer Consumer.Close()
 
 	u, _ := Consumer.ReadURL()
-	if u != nil {
-		SequenceUUID = u.ID
-	}
 	for u != nil {
 		if u.ID > SequenceUUID {
 			SequenceUUID = u.ID
@@ -399,5 +388,4 @@ func main() {
 	r.Post("/api/shorten", shortingJSON)
 	http.ListenAndServe(Parameters.ServerAddress, r)
 	//sugar.Infow(http.ListenAndServe(serverName+":"+serverPort, r).Error().)
-	fmt.Println("Не дошли сюда")
 }
