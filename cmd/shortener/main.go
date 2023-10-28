@@ -360,11 +360,11 @@ func main() {
 	}
 	defer Consumer.Close()
 
-	u, err := Consumer.ReadURL()
+	u, _ := Consumer.ReadURL()
 	for u != nil {
 		fmt.Println(u.ID, u.HASH, u.URL)
 		urlDB[u.HASH] = *u
-		u, err = Consumer.ReadURL()
+		u, _ = Consumer.ReadURL()
 	}
 
 	logger, err := zap.NewDevelopment()
