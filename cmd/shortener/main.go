@@ -383,7 +383,7 @@ func main() {
 	err14 := http.ListenAndServe(Parameters.ServerAddress, r)
 	if err14 != nil {
 		// вызываем панику, если ошибка
-		panic(err)
+		panic(err14)
 	}
 	//sugar.Infow(http.ListenAndServe(serverName+":"+serverPort, r).Error().)
 }
