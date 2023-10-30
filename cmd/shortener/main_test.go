@@ -25,6 +25,7 @@ func Test_shortingRequest(t *testing.T) {
 		contentType string
 		status      int
 	}
+
 	tests := []struct {
 		name    string
 		normal  bool
@@ -95,6 +96,7 @@ func Test_shortingRequest(t *testing.T) {
 		},
 	}
 	fileStorage = "short-url-db.json"
+	//t.Setenv("FILE_STORAGE_PATH", "short-url-db.json")
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
 			switch tt.api {
@@ -130,4 +132,27 @@ func Test_shortingRequest(t *testing.T) {
 			}
 		})
 	}
+}
+func Test_fileStorage(t *testing.T) {
+
+	fileStorage = "short-url-db-test.json"
+	u := URLrecord{
+		ID:   14,
+		HASH: "asdasdasdf",
+		URL:  "http://ya.ru",
+	}
+	t.Run("Попытка записать и прочитать записанное.", func(t *testing.T) {
+		p, err := NewProducer(fileStorage)
+		require.NoError(t, err)
+		p.WriteURL(&u)
+		p.Close()
+		c, err := NewConsumer(fileStorage)
+		require.NoError(t, err)
+		nu, err := c.ReadURL()
+		require.NoError(t, err)
+		c.Close()
+		assert.Equal(t, u.ID, nu.ID)
+		assert.Equal(t, u.HASH, nu.HASH)
+		assert.Equal(t, u.URL, nu.URL)
+	})
 }

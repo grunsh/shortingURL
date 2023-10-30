@@ -13,7 +13,6 @@ import (
 	"bytes"
 	"compress/gzip"
 	"encoding/json"
-	"fmt"
 	"github.com/go-chi/chi/v5"
 	"go.uber.org/zap"
 	"io"
@@ -339,7 +338,6 @@ func main() {
 	Parameters := config.GetParams()
 	shortURLDomain = Parameters.ShortBaseURL
 	fileStorage = Parameters.FileStoragePath
-	fmt.Println(fileStorage)
 
 	Producer, err := NewProducer(Parameters.FileStoragePath)
 	if err != nil {
