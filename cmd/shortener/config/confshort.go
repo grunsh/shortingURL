@@ -3,7 +3,6 @@ package config
 import (
 	"flag"
 	"github.com/caarlos0/env/v6"
-	_ "github.com/caarlos0/env/v6"
 	"log"
 )
 
