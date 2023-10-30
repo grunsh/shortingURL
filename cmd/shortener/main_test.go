@@ -10,7 +10,7 @@
 package main
 
 import (
-	"fmt"
+	"bytes"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 	"io"
@@ -81,28 +81,29 @@ func Test_shortingRequest(t *testing.T) {
 				status:      http.StatusBadRequest,
 			},
 		},
-		/*		{
-					name:    "Тест 01 для /api/shorten",
-					normal:  false,
-					api:     "/api/shorten",
-					request: `{"url": "https://practicum.yandex.ru"}`,
-					method:  http.MethodPost,
-					want: want{
-						response:    "",
-						contentType: "application/json",
-						status:      http.StatusCreated,
-					},
-				},
-		*/}
+		{
+			name:    "Тест 01 для /api/shorten",
+			normal:  false,
+			api:     "/api/shorten",
+			request: `{"url": "https://practicum.yandex.ru"}`,
+			method:  http.MethodPost,
+			want: want{
+				response:    "",
+				contentType: "application/json",
+				status:      http.StatusCreated,
+			},
+		},
+	}
+	fileStorage = "short-url-db.json"
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
 			switch tt.api {
 			case "/api/shorten":
-				request := httptest.NewRequest(tt.method, shortURLDomain+tt.api, nil)
+				request := httptest.NewRequest(tt.method, shortURLDomain+tt.api, bytes.NewReader([]byte(tt.request)))
 				w := httptest.NewRecorder()
 				shortingJSON(w, request)
 				res := w.Result()
-				fmt.Println(tt.request, tt.want)
+				//				fmt.Println(tt.name, ": ", tt.request, tt.want, "  --  ", tt, request)
 				res.Body.Close()
 				assert.Equal(t, tt.want.status, res.StatusCode)
 				assert.Equal(t, tt.want.contentType, res.Header.Get("Content-Type"))
@@ -117,15 +118,15 @@ func Test_shortingRequest(t *testing.T) {
 				assert.Equal(t, tt.want.response, string(data))
 				assert.Equal(t, tt.want.status, res.StatusCode)
 				assert.Equal(t, tt.want.contentType, res.Header.Get("Content-Type"))
-				/*			case "/":
-							request := httptest.NewRequest(tt.method, tt.request, nil)
-							w := httptest.NewRecorder()
-							shortingRequest(w, request)
-							res := w.Result()
-							data, err := io.ReadAll(res.Body)
-							res.Body.Close()
-							require.NoError(t, err)
-							assert.Equal(t, tt.want.response, string(data)[:len(shortURLDomain)])*/
+			case "/":
+				request := httptest.NewRequest(tt.method, tt.request, nil)
+				w := httptest.NewRecorder()
+				shortingRequest(w, request)
+				res := w.Result()
+				data, err := io.ReadAll(res.Body)
+				res.Body.Close()
+				require.NoError(t, err)
+				assert.Equal(t, tt.want.response, string(data)[:len(shortURLDomain)])
 			}
 		})
 	}

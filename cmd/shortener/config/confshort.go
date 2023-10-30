@@ -3,6 +3,7 @@ package config
 import (
 	"flag"
 	"github.com/caarlos0/env/v6"
+	_ "github.com/caarlos0/env/v6"
 	"log"
 )
 
@@ -14,7 +15,7 @@ type Parameters struct {
 	FileStoragePath string
 }
 
-// Тип для определения имени параметра, значения по-умолчанию и описания использования
+// FlagString Тип для определения имени параметра, значения по-умолчанию и описания использования
 type FlagString struct {
 	name     string
 	defValue string
@@ -27,7 +28,7 @@ type Sconfig struct {
 	FileStoragePath string `env:"FILE_STORAGE_PATH"`
 }
 
-// Структура, собирающая в себе все параметры
+// Prms Структура, собирающая в себе все параметры
 var Prms []struct {
 	description string
 	param       FlagString
@@ -91,7 +92,7 @@ func init() {
 			},
 		},
 	}
-	if len((Prms)) < 1 {
+	if len(Prms) < 1 {
 		panic("Ok")
 	}
 }

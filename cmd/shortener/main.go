@@ -387,3 +387,6 @@ func main() {
 	}
 	//sugar.Infow(http.ListenAndServe(serverName+":"+serverPort, r).Error().)
 }
+func init() {
+
+}
