@@ -392,10 +392,10 @@ func main() {
 	r.Get("/{id}", shortingGetURL)
 	r.Post("/", shortingRequest)
 	r.Post("/api/shorten", shortingJSON)
-	err14 := http.ListenAndServe(Parameters.ServerAddress, r)
-	if err14 != nil {
+	err = http.ListenAndServe(Parameters.ServerAddress, r)
+	if err != nil {
 		// вызываем панику, если ошибка
-		panic(err14)
+		panic(err)
 	}
 	//sugar.Infow(http.ListenAndServe(serverName+":"+serverPort, r).Error().)
 }
