@@ -132,7 +132,7 @@ func addURL(url []byte) []byte {
 		URL:  string(url),
 	}
 	urlDB[hash] = u
-	Producer.WriteURL(&u)
+	Producer.WriteURL(u)
 	return []byte(shortURLDomain + hash)
 }
 
@@ -292,7 +292,7 @@ func NewProducer(fileName string) (*Producer, error) {
 	}, nil
 }
 
-func (p *Producer) WriteURL(url *recordURL) error {
+func (p *Producer) WriteURL(url recordURL) error {
 	data, err := json.Marshal(&url)
 	if err != nil {
 		return err
