@@ -145,7 +145,7 @@ func Test_fileStorage(t *testing.T) {
 	t.Run("Попытка записать и прочитать записанное.", func(t *testing.T) {
 		p, err := NewProducer(fileStorage)
 		require.NoError(t, err)
-		p.WriteURL(&u)
+		p.WriteURL(u)
 		p.Close()
 		c, err := NewConsumer(fileStorage)
 		require.NoError(t, err)
