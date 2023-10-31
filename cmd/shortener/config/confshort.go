@@ -6,8 +6,14 @@ import (
 	"log"
 )
 
-var cfg Sconfig
+// Переменная для парсинга переменных окружения. Они в приоритете.
+var cfg struct {
+	ServerAddress   string `env:"SERVER_ADDRESS"`
+	BaseURL         string `env:"BASE_URL"`
+	FileStoragePath string `env:"FILE_STORAGE_PATH"`
+}
 
+// Структура для параметров всего кода
 type Parameters struct {
 	ServerAddress   string
 	ShortBaseURL    string
@@ -19,12 +25,6 @@ type FlagString struct {
 	name     string
 	defValue string
 	usage    string
-}
-
-type Sconfig struct {
-	ServerAddress   string `env:"SERVER_ADDRESS"`
-	BaseURL         string `env:"BASE_URL"`
-	FileStoragePath string `env:"FILE_STORAGE_PATH"`
 }
 
 // Prms Структура, собирающая в себе все параметры

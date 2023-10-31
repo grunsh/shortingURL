@@ -133,10 +133,11 @@ func Test_shortingRequest(t *testing.T) {
 		})
 	}
 }
+
 func Test_fileStorage(t *testing.T) {
 
 	fileStorage = "short-url-db-test.json"
-	u := URLrecord{
+	u := recordURL{
 		ID:   14,
 		HASH: "asdasdasdf",
 		URL:  "http://ya.ru",

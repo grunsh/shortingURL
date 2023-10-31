@@ -6,6 +6,7 @@
 держась за палец. Я не сдаюсь. Стараюсь. Я даже с гитом до курса не работал и никогда не писал юнит тестов. А тут вон чо.
 Спасибо тебе дяденька за понимание, заранее. Не заваливай пожалуйста. Я почти не сплю, но тяну лямку и грызу гранит.
 */
+
 package main
 
 import (
@@ -25,14 +26,17 @@ import (
 	"time"
 )
 
-type URLrecord struct {
+// Тип записи URL-а. Используется и в памяти и в файле в формате JSON
+type recordURL struct {
 	ID   uint   `json:"uuid"`
 	HASH string `json:"short_url"`
 	URL  string `json:"original_url"`
 }
 
-type urlDBtype map[string]URLrecord
+// Мапа для хранения урлов в памяти
+type urlDBtype map[string]recordURL
 
+// Блок зла. Глобальные переменные и константы
 var (
 	shortURLDomain string                // Переменная используется в коде в разных местах, значение присваивается в начале работы их cfg
 	urlDB          = make(urlDBtype)     // мапа для урлов, ключ - хеш, значение - URL
@@ -41,9 +45,10 @@ var (
 	SequenceUUID   uint              = 0 // Для генерации uuid в файле урлов
 )
 
-const hashLen int = 10 // Длина генерируемого хеша
-
-const charset = "abcdefghijklmnopqrstuvwxyzABCDEFGHIJKLMNOPQRSTUVWXYZ" // Для генератора хэшей
+const (
+	hashLen int = 10                                                     // Длина генерируемого хеша
+	charset     = "abcdefghijklmnopqrstuvwxyzABCDEFGHIJKLMNOPQRSTUVWXYZ" // Для генератора хэшей
+)
 
 type (
 	// структура для хранения сведений об ответе
@@ -64,16 +69,14 @@ type (
 		Writer io.Writer
 	}
 
+	// Тип с интерфейсом для компрессии
 	gzipReader struct {
 		r  io.ReadCloser
 		zr *gzip.Reader
 	}
 )
 
-func (w gzipWriter) Write(b []byte) (int, error) {
-	return w.Writer.Write(b)
-}
-
+/*---------- Начало. Блок про сжиматорство ----------*/
 func newCompressReader(r io.ReadCloser) (*gzipReader, error) {
 	zr, err := gzip.NewReader(r)
 	if err != nil {
@@ -96,13 +99,19 @@ func (c *gzipReader) Close() error {
 	return c.zr.Close()
 }
 
+func (w gzipWriter) Write(b []byte) (int, error) {
+	return w.Writer.Write(b)
+}
+
+/*---------- Конец. Блок про сжиматорство ----------*/
+
+// Функции журналирования
 func (r *loggingResponseWriter) Write(b []byte) (int, error) {
 	// записываем ответ, используя оригинальный http.ResponseWriter
 	size, err := r.ResponseWriter.Write(b)
 	r.responseData.size += size // захватываем размер
 	return size, err
 }
-
 func (r *loggingResponseWriter) WriteHeader(statusCode int) {
 	// записываем код статуса, используя оригинальный http.ResponseWriter
 	r.ResponseWriter.WriteHeader(statusCode)
@@ -117,7 +126,7 @@ func addURL(url []byte) []byte {
 	}
 	defer Producer.Close()
 	hash := getHash()
-	u := URLrecord{
+	u := recordURL{
 		ID:   nextSequenceID(),
 		HASH: hash,
 		URL:  string(url),
@@ -142,6 +151,8 @@ func nextSequenceID() uint {
 	SequenceUUID += 1
 	return SequenceUUID
 }
+
+/*--- Начало. Секция хендлеров ---*/
 
 // Хендлер получения сокращённого URL. 307 и редирект, или ошибка.
 func shortingGetURL(res http.ResponseWriter, req *http.Request) {
@@ -171,6 +182,7 @@ func shortingRequest(res http.ResponseWriter, req *http.Request) {
 	res.Write(shrtURL)
 }
 
+// JSON хендлер для сокращения URL. На входе принимается URL как JSON
 func shortingJSON(res http.ResponseWriter, req *http.Request) {
 	type URLReq struct { // Тип для запроса с тегом url
 		URL string `json:"url"`
@@ -204,7 +216,10 @@ func shortingJSON(res http.ResponseWriter, req *http.Request) {
 	res.Write(resp)
 }
 
-// Обёртка для журналирования запросов
+/*---------- Конец. Секция хендлеров ----------*/
+
+/*---------- Начало. Секция миддлаварей. ----------*/
+// миддлварь-обёртка для журналирования запросов
 func logHTTPInfo(h http.Handler) http.Handler {
 	logHTTPRequests := func(w http.ResponseWriter, r *http.Request) {
 		startTime := time.Now()
@@ -258,7 +273,9 @@ func compressExchange(next http.Handler) http.Handler {
 	})
 }
 
-// -------------------- file
+/*---------- Конец. Секция миддлаварей. ----------*/
+
+/*---------- Начало. Секция работы с файлом. ----------*/
 type Producer struct {
 	file   *os.File
 	writer *bufio.Writer
@@ -275,7 +292,7 @@ func NewProducer(fileName string) (*Producer, error) {
 	}, nil
 }
 
-func (p *Producer) WriteURL(url *URLrecord) error {
+func (p *Producer) WriteURL(url *recordURL) error {
 	data, err := json.Marshal(&url)
 	if err != nil {
 		return err
@@ -312,14 +329,14 @@ func NewConsumer(filename string) (*Consumer, error) {
 	}, nil
 }
 
-func (c *Consumer) ReadURL() (*URLrecord, error) {
+func (c *Consumer) ReadURL() (*recordURL, error) {
 	// одиночное сканирование до следующей строки
 	if !c.scanner.Scan() {
 		return nil, c.scanner.Err()
 	}
 	// читаем данные из scanner
 	data := c.scanner.Bytes()
-	url := URLrecord{}
+	url := recordURL{}
 	err := json.Unmarshal(data, &url)
 	if err != nil {
 		return nil, err
@@ -331,26 +348,21 @@ func (c *Consumer) Close() error {
 	return c.file.Close()
 }
 
-// -------------------- file
+/*---------- Конец. Секция миддлаварей. ----------*/
 
 func main() {
 
+	// Принимаем параметры
 	Parameters := config.GetParams()
 	shortURLDomain = Parameters.ShortBaseURL
 	fileStorage = Parameters.FileStoragePath
 
-	Producer, err := NewProducer(Parameters.FileStoragePath)
-	if err != nil {
-		log.Fatal(err)
-	}
-	defer Producer.Close()
-
+	// Читаем файл с урлами файлов
 	Consumer, err := NewConsumer(Parameters.FileStoragePath)
 	if err != nil {
 		log.Fatal(err)
 	}
 	defer Consumer.Close()
-
 	u, _ := Consumer.ReadURL()
 	for u != nil {
 		if u.ID > SequenceUUID {
@@ -360,18 +372,20 @@ func main() {
 		u, _ = Consumer.ReadURL()
 	}
 
+	// Раскручиваем маховик журналирования
 	logger, err := zap.NewDevelopment()
 	if err != nil {
 		// вызываем панику, если ошибка
 		panic(err)
 	}
 	defer logger.Sync()
-
 	sugar = *logger.Sugar() // делаем регистратор SugaredLogger
 	sugar.Infow(
 		"Starting server",
 		"addr", Parameters.ServerAddress,
 	)
+
+	// Роутер. Регистрируем миддлвари, хендлеры и запускаемся.
 	r := chi.NewRouter()
 	r.Use(compressExchange) // Встраиваем сжиматор-разжиматор
 	r.Use(logHTTPInfo)      // Встраиваем логгер в роутер
