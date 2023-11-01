@@ -156,13 +156,11 @@ func nextSequenceID() uint {
 	return SequenceUUID
 }
 
-/*--- Начало. Секция хендлеров ---*/
-
+/*---------- Начало. Секция хендлеров ----------*/
 // Хендлер получения сокращённого URL. 307 и редирект, или ошибка.
 func ping(res http.ResponseWriter, req *http.Request) {
 	ps := parameters.Database_DSN
 	db, err := sql.Open("pgx", ps)
-	defer db.Close()
 	if err != nil {
 		res.Header().Set("Content-Type", "text/plain")
 		res.WriteHeader(http.StatusInternalServerError)
@@ -178,6 +176,7 @@ func ping(res http.ResponseWriter, req *http.Request) {
 			res.WriteHeader(http.StatusOK)
 		}
 	}
+	db.Close()
 }
 
 // Хендлер получения сокращённого URL. 307 и редирект, или ошибка.
