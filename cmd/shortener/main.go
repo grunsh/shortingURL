@@ -159,7 +159,7 @@ func nextSequenceID() uint {
 /*---------- Начало. Секция хендлеров ----------*/
 // Хендлер получения сокращённого URL. 307 и редирект, или ошибка.
 func ping(res http.ResponseWriter, req *http.Request) {
-	ps := parameters.Database_DSN
+	ps := parameters.DatabaseDSN
 	db, err := sql.Open("pgx", ps)
 	if err != nil {
 		res.Header().Set("Content-Type", "text/plain")

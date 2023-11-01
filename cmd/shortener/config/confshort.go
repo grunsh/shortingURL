@@ -19,7 +19,7 @@ type Parameters struct {
 	ServerAddress   string
 	ShortBaseURL    string
 	FileStoragePath string
-	Database_DSN    string
+	DatabaseDSN     string
 }
 
 // FlagString Тип для определения имени параметра, значения по-умолчанию и описания использования
@@ -85,7 +85,7 @@ func GetParams() Parameters {
 	p.ServerAddress = *serverAddress
 	p.ShortBaseURL = *shortURLBaseParam
 	p.FileStoragePath = *fileStoragePath
-	p.Database_DSN = *dataBaseString
+	p.DatabaseDSN = *dataBaseString
 	err := env.Parse(&cfg) // Парсим переменные окружения
 	if err != nil {
 		log.Fatalf("Ну не получилось распарсить переменную окружения: %e", err)
@@ -103,7 +103,7 @@ func GetParams() Parameters {
 		p.ShortBaseURL += "/"
 	}
 	if cfg.DataBaseDSN != "" { // Если переменная окружения есть, используем её, иначе параметр или значение по-умолчанию
-		p.Database_DSN = cfg.DataBaseDSN
+		p.DatabaseDSN = cfg.DataBaseDSN
 	}
 
 	return p
