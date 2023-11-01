@@ -13,8 +13,11 @@ import (
 	"bufio"
 	"bytes"
 	"compress/gzip"
+	"context"
+	"database/sql"
 	"encoding/json"
 	"github.com/go-chi/chi/v5"
+	_ "github.com/jackc/pgx/v5/stdlib"
 	"go.uber.org/zap"
 	"io"
 	"log"
@@ -43,6 +46,7 @@ var (
 	sugar          zap.SugaredLogger     // регистратор журналов
 	fileStorage    string                //имя файла с црлами
 	SequenceUUID   uint              = 0 // Для генерации uuid в файле урлов
+	parameters     config.Parameters     //Глобалочка для параметров
 )
 
 const (
@@ -153,6 +157,28 @@ func nextSequenceID() uint {
 }
 
 /*--- Начало. Секция хендлеров ---*/
+
+// Хендлер получения сокращённого URL. 307 и редирект, или ошибка.
+func ping(res http.ResponseWriter, req *http.Request) {
+	ps := parameters.Database_DSN
+	db, err := sql.Open("pgx", ps)
+	defer db.Close()
+	if err != nil {
+		res.Header().Set("Content-Type", "text/plain")
+		res.WriteHeader(http.StatusInternalServerError)
+	} else {
+		ctx, cancel := context.WithTimeout(context.Background(), 2*time.Second)
+		defer cancel()
+		err = db.PingContext(ctx)
+		if err != nil {
+			res.Header().Set("Content-Type", "text/plain")
+			res.WriteHeader(http.StatusInternalServerError)
+		} else {
+			res.Header().Set("Content-Type", "text/plain")
+			res.WriteHeader(http.StatusOK)
+		}
+	}
+}
 
 // Хендлер получения сокращённого URL. 307 и редирект, или ошибка.
 func shortingGetURL(res http.ResponseWriter, req *http.Request) {
@@ -348,17 +374,18 @@ func (c *Consumer) Close() error {
 	return c.file.Close()
 }
 
-/*---------- Конец. Секция миддлаварей. ----------*/
+/*---------- Конец. Секция работы с файлом. ----------*/
 
 func main() {
 
 	// Принимаем параметры
-	Parameters := config.GetParams()
-	shortURLDomain = Parameters.ShortBaseURL
-	fileStorage = Parameters.FileStoragePath
+	parameters = config.GetParams()
+
+	shortURLDomain = parameters.ShortBaseURL
+	fileStorage = parameters.FileStoragePath
 
 	// Читаем файл с урлами файлов
-	Consumer, err := NewConsumer(Parameters.FileStoragePath)
+	Consumer, err := NewConsumer(parameters.FileStoragePath)
 	if err != nil {
 		log.Fatal(err)
 	}
@@ -382,7 +409,7 @@ func main() {
 	sugar = *logger.Sugar() // делаем регистратор SugaredLogger
 	sugar.Infow(
 		"Starting server",
-		"addr", Parameters.ServerAddress,
+		"addr", parameters.ServerAddress,
 	)
 
 	// Роутер. Регистрируем миддлвари, хендлеры и запускаемся.
@@ -392,13 +419,12 @@ func main() {
 	r.Get("/{id}", shortingGetURL)
 	r.Post("/", shortingRequest)
 	r.Post("/api/shorten", shortingJSON)
-	err = http.ListenAndServe(Parameters.ServerAddress, r)
+	r.Get("/ping", ping)
+	err = http.ListenAndServe(parameters.ServerAddress, r)
 	if err != nil {
 		// вызываем панику, если ошибка
 		panic(err)
 	}
 	//sugar.Infow(http.ListenAndServe(serverName+":"+serverPort, r).Error().)
-}
-func init() {
 
 }
