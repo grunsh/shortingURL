@@ -47,6 +47,8 @@ var (
 	fileStorage    string                //имя файла с црлами
 	SequenceUUID   uint              = 0 // Для генерации uuid в файле урлов
 	parameters     config.Parameters     //Глобалочка для параметров
+	prod           *Producer
+	err            error
 )
 
 const (
@@ -124,11 +126,6 @@ func (r *loggingResponseWriter) WriteHeader(statusCode int) {
 
 // Генератор сокращённого URL. Использует константу shortURLDomain как настройку.
 func addURL(url []byte) []byte {
-	Producer, err := NewProducer(fileStorage)
-	if err != nil {
-		log.Fatal(err)
-	}
-	defer Producer.Close()
 	hash := getHash()
 	u := recordURL{
 		ID:   nextSequenceID(),
@@ -136,7 +133,7 @@ func addURL(url []byte) []byte {
 		URL:  string(url),
 	}
 	urlDB[hash] = u
-	Producer.WriteURL(u)
+	prod.WriteURL(u)
 	return []byte(shortURLDomain + hash)
 }
 
@@ -397,6 +394,12 @@ func main() {
 		urlDB[u.HASH] = *u
 		u, _ = Consumer.ReadURL()
 	}
+
+	prod, err = NewProducer(fileStorage)
+	if err != nil {
+		log.Fatal(err)
+	}
+	defer prod.Close()
 
 	// Раскручиваем маховик журналирования
 	logger, err := zap.NewDevelopment()
