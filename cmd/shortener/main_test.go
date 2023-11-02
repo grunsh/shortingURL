@@ -14,6 +14,7 @@ import (
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 	"io"
+	"log"
 	"net/http"
 	"net/http/httptest"
 	"testing"
@@ -96,6 +97,11 @@ func Test_shortingRequest(t *testing.T) {
 		},
 	}
 	fileStorage = "short-url-db.json"
+	prod, err = NewProducer(fileStorage)
+	if err != nil {
+		log.Fatal(err)
+	}
+	defer prod.Close()
 	//t.Setenv("FILE_STORAGE_PATH", "short-url-db.json")
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
