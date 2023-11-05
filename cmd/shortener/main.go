@@ -61,12 +61,12 @@ var (
 	getURL         func(id string) recordURL
 )
 
-var schemaDB struct {
-	schemaName             string
-	table_name             string
-	createSchemaIfNotExist string
-	createTabeleIfNotExist string
-}
+//var schemaDB struct {
+//	schemaName             string
+//	table_name             string
+//	createSchemaIfNotExist string
+//	createTabeleIfNotExist string
+//}
 
 func createDB() {
 	q := "CREATE SCHEMA IF NOT EXISTS shortURL"
@@ -406,7 +406,6 @@ func NewStorageDrivers() (func(u recordURL), func(id string) recordURL) {
 		db.QueryRow(q)
 		return func(u recordURL) { // Записыватель в БД
 				db.QueryRow("insert into shorturl.url (hash,url) values ($1,$2)", u.HASH, u.URL)
-				return
 			}, func(id string) recordURL { // Считыватель из БД
 				db.QueryRow("SELECT u.id, u.url FROM shorturl.url u WHERE u.hash = $1", id).Scan(&uuid, &url)
 				if uuid == 0 {
@@ -432,6 +431,9 @@ func NewStorageDrivers() (func(u recordURL), func(id string) recordURL) {
 		}
 		Consumer.Close()
 		prod, err = NewProducer(parameters.FileStoragePath)
+		if err != nil {
+			panic("Ой")
+		}
 		return func(u recordURL) { // Записыватель в файл
 				prod.WriteURL(u)
 			}, func(id string) recordURL { // Считыватель "из файла" (на деле из памяти)

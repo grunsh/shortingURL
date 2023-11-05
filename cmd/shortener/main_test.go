@@ -96,6 +96,9 @@ func Test_shortingRequest(t *testing.T) {
 		},
 	}
 	fileStorage = "short-url-db.json"
+	parameters.DatabaseDSN = "host=localhost user=shortener password=shortener dbname=shortener sslmode=disable"
+	storeURL, getURL = NewStorageDrivers()
+
 	//t.Setenv("FILE_STORAGE_PATH", "short-url-db.json")
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
