@@ -16,6 +16,7 @@ import (
 	"context"
 	"database/sql"
 	"encoding/json"
+	"fmt"
 	"github.com/go-chi/chi/v5"
 	_ "github.com/jackc/pgx/v5/stdlib"
 	"go.uber.org/zap"
@@ -39,6 +40,12 @@ type recordURL struct {
 // Мапа для хранения урлов в памяти
 type urlDBtype map[string]recordURL
 
+type URLstorage struct {
+	u           urlDBtype
+	p           Producer
+	storageName string
+}
+
 // Блок зла. Глобальные переменные и константы
 var (
 	shortURLDomain string                // Переменная используется в коде в разных местах, значение присваивается в начале работы их cfg
@@ -47,7 +54,25 @@ var (
 	fileStorage    string                //имя файла с црлами
 	SequenceUUID   uint              = 0 // Для генерации uuid в файле урлов
 	parameters     config.Parameters     //Глобалочка для параметров
+	prod           *Producer
+	err            error
+	db             *sql.DB
+	storeURL       func(u recordURL)
+	getURL         func(id string) recordURL
 )
+
+var schemaDB struct {
+	schemaName             string
+	table_name             string
+	createSchemaIfNotExist string
+	createTabeleIfNotExist string
+}
+
+func createDB() {
+	q := "CREATE SCHEMA IF NOT EXISTS shortURL"
+	q = "CREATE table IF NOT EXISTS  shortURL.URL (id bigserial primary key, hash varchar(10), url varchar(255))"
+	fmt.Println(q)
+}
 
 const (
 	hashLen int = 10                                                     // Длина генерируемого хеша
@@ -124,11 +149,6 @@ func (r *loggingResponseWriter) WriteHeader(statusCode int) {
 
 // Генератор сокращённого URL. Использует константу shortURLDomain как настройку.
 func addURL(url []byte) []byte {
-	Producer, err := NewProducer(fileStorage)
-	if err != nil {
-		log.Fatal(err)
-	}
-	defer Producer.Close()
 	hash := getHash()
 	u := recordURL{
 		ID:   nextSequenceID(),
@@ -136,7 +156,8 @@ func addURL(url []byte) []byte {
 		URL:  string(url),
 	}
 	urlDB[hash] = u
-	Producer.WriteURL(u)
+	//тут надо записать урл в...
+	storeURL(u)
 	return []byte(shortURLDomain + hash)
 }
 
@@ -159,24 +180,19 @@ func nextSequenceID() uint {
 /*---------- Начало. Секция хендлеров ----------*/
 // Хендлер получения сокращённого URL. 307 и редирект, или ошибка.
 func ping(res http.ResponseWriter, req *http.Request) {
-	ps := parameters.DatabaseDSN
-	db, err := sql.Open("pgx", ps)
+	res.Header().Set("Content-Type", "text/plain")
 	if err != nil {
-		res.Header().Set("Content-Type", "text/plain")
 		res.WriteHeader(http.StatusInternalServerError)
 	} else {
 		ctx, cancel := context.WithTimeout(context.Background(), 2*time.Second)
 		defer cancel()
 		err = db.PingContext(ctx)
 		if err != nil {
-			res.Header().Set("Content-Type", "text/plain")
 			res.WriteHeader(http.StatusInternalServerError)
 		} else {
-			res.Header().Set("Content-Type", "text/plain")
 			res.WriteHeader(http.StatusOK)
 		}
 	}
-	db.Close()
 }
 
 // Хендлер получения сокращённого URL. 307 и редирект, или ошибка.
@@ -184,8 +200,9 @@ func shortingGetURL(res http.ResponseWriter, req *http.Request) {
 	id := req.URL.Path[1:] // Откусываем / и записываем id
 	res.Header().Del("Content-Encoding")
 	res.Header().Set("Content-Type", "text/plain") // Установим тип ответа text/plain
-	if val, ok := urlDB[id]; ok {
-		res.Header().Set("Location", val.URL)         // Укажем куда редирект
+	u := getURL(id)
+	if u.ID != 0 {
+		res.Header().Set("Location", u.URL)           // Укажем куда редирект
 		res.WriteHeader(http.StatusTemporaryRedirect) // Передаём 307
 	} else {
 		res.WriteHeader(http.StatusBadRequest) // Прошли весь массив, но хеша нет.
@@ -375,28 +392,67 @@ func (c *Consumer) Close() error {
 
 /*---------- Конец. Секция работы с файлом. ----------*/
 
+func NewStorageDrivers() (func(u recordURL), func(id string) recordURL) {
+	if parameters.DatabaseDSN != "" { // Случай, когда работаем с БД. Начало. ---------------------------
+		ps := parameters.DatabaseDSN
+		db, err = sql.Open("pgx", ps)
+		return func(u recordURL) { // Записыватель в БД
+				fmt.Println("AAA")
+				return
+			}, func(id string) recordURL { // Считыватель из БД
+				if val, ok := urlDB[id]; ok {
+					return val
+				} else {
+					return recordURL{ID: 0, HASH: "", URL: ""}
+				}
+			}
+		// Случай, когда работаем с БД. Начало. ---------------------------
+	} else if parameters.FileStoragePath != "" { // Случай, когда работаем с файлом. Начало --------------------------------
+		// Читаем весь файл в память, ибо нех в него каждый раз лазать, чтобы найти. Долго это. Никто так не работает.
+		Consumer, err := NewConsumer(parameters.FileStoragePath)
+		if err != nil {
+			log.Fatal(err)
+		}
+		u, _ := Consumer.ReadURL()
+		for u != nil {
+			if u.ID > SequenceUUID {
+				SequenceUUID = u.ID
+			}
+			urlDB[u.HASH] = *u
+			u, _ = Consumer.ReadURL()
+		}
+		Consumer.Close()
+		prod, err = NewProducer(parameters.FileStoragePath)
+		return func(u recordURL) { // Записыватель в файл
+				prod.WriteURL(u)
+			}, func(id string) recordURL { // Считыватель "из файла" (на деле из памяти)
+				if val, ok := urlDB[id]; ok {
+					return val
+				} else {
+					return recordURL{ID: 0, HASH: "", URL: ""}
+				}
+			}
+
+	} else { // Случай, когда работаем с файлом. Конец --------------------------------
+		return func(u recordURL) { // Случай, когда работаем с памятью. НАчало --------------------------------
+				prod.WriteURL(u)
+			}, func(id string) recordURL {
+				if val, ok := urlDB[id]; ok {
+					return val
+				} else {
+					return recordURL{ID: 0, HASH: "", URL: ""}
+				}
+			}
+	} // Случай, когда работаем с памятью. КОнец --------------------------------
+
+}
+
 func main() {
 
-	// Принимаем параметры
-	parameters = config.GetParams()
+	parameters = config.GetParams() // Для начала получаем все параметры
+	storeURL, getURL = NewStorageDrivers()
 
 	shortURLDomain = parameters.ShortBaseURL
-	fileStorage = parameters.FileStoragePath
-
-	// Читаем файл с урлами файлов
-	Consumer, err := NewConsumer(parameters.FileStoragePath)
-	if err != nil {
-		log.Fatal(err)
-	}
-	defer Consumer.Close()
-	u, _ := Consumer.ReadURL()
-	for u != nil {
-		if u.ID > SequenceUUID {
-			SequenceUUID = u.ID
-		}
-		urlDB[u.HASH] = *u
-		u, _ = Consumer.ReadURL()
-	}
 
 	// Раскручиваем маховик журналирования
 	logger, err := zap.NewDevelopment()
@@ -425,5 +481,6 @@ func main() {
 		panic(err)
 	}
 	//sugar.Infow(http.ListenAndServe(serverName+":"+serverPort, r).Error().)
+	db.Close()
 
 }

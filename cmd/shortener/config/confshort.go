@@ -67,8 +67,9 @@ var (
 		"dataBase": {
 			description: "Строка подключения к БД",
 			param: FlagString{
-				name:     "d",
-				defValue: "host=localhost user=shortener password=shortener dbname=shortener sslmode=disable",
+				name: "d",
+				//				defValue: "host=localhost user=shortener password=shortener dbname=shortener sslmode=disable",
+				defValue: "",
 				usage:    "Строка подключения к Бд формате:  host=%s user=%s password=%s dbname=%s sslmode=disable",
 			},
 		},
