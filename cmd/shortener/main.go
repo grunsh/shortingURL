@@ -394,16 +394,25 @@ func (c *Consumer) Close() error {
 
 func NewStorageDrivers() (func(u recordURL), func(id string) recordURL) {
 	if parameters.DatabaseDSN != "" { // Случай, когда работаем с БД. Начало. ---------------------------
+		var (
+			uuid uint
+			url  string
+		)
 		ps := parameters.DatabaseDSN
 		db, err = sql.Open("pgx", ps)
+		q := "CREATE SCHEMA IF NOT EXISTS shortURL"
+		db.QueryRow(q)
+		q = "CREATE table IF NOT EXISTS  shortURL.URL (id bigserial primary key, hash varchar(10), url varchar(255))"
+		db.QueryRow(q)
 		return func(u recordURL) { // Записыватель в БД
-				fmt.Println("AAA")
+				db.QueryRow("insert into shorturl.url (hash,url) values ($1,$2)", u.HASH, u.URL)
 				return
 			}, func(id string) recordURL { // Считыватель из БД
-				if val, ok := urlDB[id]; ok {
-					return val
-				} else {
+				db.QueryRow("SELECT u.id, u.url FROM shorturl.url u WHERE u.hash = $1", id).Scan(&uuid, &url)
+				if uuid == 0 {
 					return recordURL{ID: 0, HASH: "", URL: ""}
+				} else {
+					return recordURL{ID: uuid, HASH: id, URL: url}
 				}
 			}
 		// Случай, когда работаем с БД. Начало. ---------------------------
@@ -450,6 +459,7 @@ func NewStorageDrivers() (func(u recordURL), func(id string) recordURL) {
 func main() {
 
 	parameters = config.GetParams() // Для начала получаем все параметры
+	fmt.Println(parameters)
 	storeURL, getURL = NewStorageDrivers()
 
 	shortURLDomain = parameters.ShortBaseURL
