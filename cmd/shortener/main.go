@@ -312,13 +312,25 @@ func compressExchange(next http.Handler) http.Handler {
 
 /*---------- Конец. Секция миддлаварей. ----------*/
 
+func InitStorage(p config.Parameters) storage.Storer {
+	if p.DatabaseDSN != "" {
+		return storage.Storer(&storage.DataBase{DataBaseDSN: p.DatabaseDSN})
+	} else if p.FileStoragePath != "" {
+		return storage.Storer(&storage.FileStorageURL{FilePath: p.FileStoragePath})
+	} else {
+		return storage.Storer(&storage.InMemURL{})
+	}
+
+}
+
 func main() {
 
 	config.PRM = config.GetParams() // Для начала получаем все параметры
 	fmt.Println(config.PRM)
 	//URLstorage = storage.Storer(&storage.InMemURL{})
 	//URLstorage = storage.Storer(&storage.FileStorageURL{FilePath: config.PRM.FileStoragePath})
-	URLstorage = storage.Storer(&storage.DataBase{DataBaseDSN: config.PRM.DatabaseDSN})
+	//URLstorage = storage.Storer(&storage.DataBase{DataBaseDSN: config.PRM.DatabaseDSN})
+	URLstorage = InitStorage(config.PRM)
 	URLstorage.Open()
 	defer URLstorage.Close()
 	shortURLDomain = parameters.ShortBaseURL

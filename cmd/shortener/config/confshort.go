@@ -115,11 +115,11 @@ func GetParams() Parameters {
 	if cfg.FileStoragePath != "" { // Если переменная окружения есть, используем её, иначе параметр или значение по-умолчанию
 		p.FileStoragePath = cfg.FileStoragePath
 	}
-	if p.ShortBaseURL[len(p.ShortBaseURL)-1:] != "/" { // Накинем "/", т.к. в параметрах его не передают
-		p.ShortBaseURL += "/"
-	}
 	if cfg.DataBaseDSN != "" { // Если переменная окружения есть, используем её, иначе параметр или значение по-умолчанию
 		p.DatabaseDSN = cfg.DataBaseDSN
+	}
+	if p.ShortBaseURL[len(p.ShortBaseURL)-1:] != "/" { // Накинем "/", т.к. в параметрах его не передают
+		p.ShortBaseURL += "/"
 	}
 
 	return p
