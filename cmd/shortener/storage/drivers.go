@@ -237,9 +237,14 @@ func (f *DataBase) StoreURL(url []byte) []byte {
 		URL:   string(url),
 		CorID: "",
 	}
-	db.QueryRow("insert into shorturl.url (hash,url,correlation_id) values ($1,$2,$3)", u.HASH, u.URL, u.CorID)
-	if u.ID < 0 { // Чисто что вет тест перестал докапываться
-		panic("Jq")
+	tx, err := db.Begin()
+	if err != nil {
+		panic("Ой")
+	}
+	tx.Exec("insert into shorturl.url (hash,url,correlation_id) values ($1,$2,$3)", u.HASH, u.URL, u.CorID)
+	tx.Commit()
+	if u.ID == 0 { // Чисто что вет тест перестал докапываться
+		u.ID = 0
 	}
 	return []byte(config.PRM.ShortBaseURL + hash)
 }
