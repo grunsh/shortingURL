@@ -132,13 +132,16 @@ func ping(res http.ResponseWriter, req *http.Request) {
 		defer cancel()
 		ps := config.PRM.DatabaseDSN
 		db, err = sql.Open("pgx", ps)
-		defer db.Close()
-		err = db.PingContext(ctx)
 		if err != nil {
 			res.WriteHeader(http.StatusInternalServerError)
 		} else {
+			err = db.PingContext(ctx)
+			if err != nil {
+				res.WriteHeader(http.StatusInternalServerError)
+			}
 			res.WriteHeader(http.StatusOK)
 		}
+		db.Close()
 	}
 }
 

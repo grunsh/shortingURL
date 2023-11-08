@@ -234,7 +234,7 @@ func (f *DataBase) StoreURL(url []byte) []byte {
 		URL:   string(url),
 		CorId: "",
 	}
-	db.QueryRow("insert into shorturl.url (hash,url,correlation_id) values ($1,$2)", u.HASH, u.URL, u.CorId)
+	db.QueryRow("insert into shorturl.url (hash,url,correlation_id) values ($1,$2,$3)", u.HASH, u.URL, u.CorId)
 	return []byte(config.PRM.ShortBaseURL + hash)
 }
 
