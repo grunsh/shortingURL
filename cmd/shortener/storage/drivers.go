@@ -238,6 +238,27 @@ func (f *DataBase) StoreURL(url []byte) []byte {
 	return []byte(config.PRM.ShortBaseURL + hash)
 }
 
+func (f *DataBase) StoreURLbatch(urls []config.RecordURL) []config.RecordURL {
+	var uResp []config.RecordURL
+	tx, err := db.Begin()
+	if err != nil {
+		panic("Ой.")
+	}
+	for _, u := range urls {
+		hash := fun.GetHash()
+		u := config.RecordURL{
+			ID:    fun.NextSequenceID(),
+			HASH:  hash,
+			URL:   u.URL,
+			CorId: u.CorId,
+		}
+		tx.Exec("insert into shorturl.url (hash,url,correlation_id) values ($1,$2,$3)", u.HASH, u.URL, u.CorId)
+		uResp = append(uResp, u)
+	}
+	tx.Commit()
+	return uResp
+}
+
 // Метод инициализации хранилища. В данном случае, инициализируем мапу, а то ай-ай
 func (f *DataBase) Open() {
 	ps := config.PRM.DatabaseDSN
