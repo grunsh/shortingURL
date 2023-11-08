@@ -96,8 +96,8 @@ func Test_shortingRequest(t *testing.T) {
 			},
 		},
 	}
-	fileStorage = "short-url-db.json"
-	parameters.DatabaseDSN = "host=localhost user=shortener password=shortener dbname=shortener sslmode=disable"
+	config.PRM.FileStoragePath = "short-url-db.json"
+	config.PRM.DatabaseDSN = "host=localhost user=shortener password=shortener dbname=shortener sslmode=disable"
 	//	storeURL, getURL = NewStorageDrivers()
 	URLstorage = InitStorage(config.PRM)
 	URLstorage.Open()

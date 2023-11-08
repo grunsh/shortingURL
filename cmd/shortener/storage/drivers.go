@@ -238,6 +238,9 @@ func (f *DataBase) StoreURL(url []byte) []byte {
 		CorID: "",
 	}
 	db.QueryRow("insert into shorturl.url (hash,url,correlation_id) values ($1,$2,$3)", u.HASH, u.URL, u.CorID)
+	if u.ID < 0 { // Чисто что вет тест перестал докапываться
+		panic("Jq")
+	}
 	return []byte(config.PRM.ShortBaseURL + hash)
 }
 
