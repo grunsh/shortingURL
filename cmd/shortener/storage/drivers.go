@@ -95,7 +95,7 @@ func (f *FileStorageURL) Open() {
 	Consumer.Close()
 	Prod, err = NewProducer(config.PRM.FileStoragePath)
 	if err != nil {
-		panic("Ой")
+		panic("Ой. Не получилось создать писателя в файл.")
 	}
 }
 
