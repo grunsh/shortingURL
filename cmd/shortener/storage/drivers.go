@@ -94,6 +94,9 @@ func (f *FileStorageURL) Open() {
 	}
 	Consumer.Close()
 	Prod, err = NewProducer(config.PRM.FileStoragePath)
+	if err != nil {
+		panic("Ой")
+	}
 }
 
 func (f *FileStorageURL) Close() {
@@ -229,7 +232,7 @@ func (f *DataBase) GetURL(hash string) config.RecordURL {
 func (f *DataBase) StoreURL(url []byte) []byte {
 	hash := fun.GetHash()
 	u := config.RecordURL{
-		ID:    fun.NextSequenceID(),
+		ID:    0,
 		HASH:  hash,
 		URL:   string(url),
 		CorID: "",

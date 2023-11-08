@@ -28,30 +28,16 @@ import (
 	"time"
 )
 
-// Мапа для хранения урлов в памяти
-type urlDBtype map[string]config.RecordURL
-
 // Блок зла. Глобальные переменные и константы
 var (
-	shortURLDomain string                // Переменная используется в коде в разных местах, значение присваивается в начале работы их cfg
-	urlDB          = make(urlDBtype)     // мапа для урлов, ключ - хеш, значение - URL
-	sugar          zap.SugaredLogger     // регистратор журналов
-	fileStorage    string                //имя файла с црлами
-	SequenceUUID   uint              = 0 // Для генерации uuid в файле урлов
-	parameters     config.Parameters     //Глобалочка для параметров
+	shortURLDomain string            // Переменная используется в коде в разных местах, значение присваивается в начале работы их cfg
+	sugar          zap.SugaredLogger // регистратор журналов
+	parameters     config.Parameters //Глобалочка для параметров
 	//	prod           *Producer
 	err        error
 	db         *sql.DB
-	storeURL   func(u config.RecordURL)
-	getURL     func(id string) config.RecordURL
 	URLstorage storage.Storer
 )
-
-func createDB() {
-	q := "CREATE SCHEMA IF NOT EXISTS shortURL"
-	q = "CREATE table IF NOT EXISTS  shortURL.URL (id bigserial primary key, hash varchar(10), url varchar(255), correlation_id varchar(255))"
-	fmt.Println(q)
-}
 
 type (
 	// структура для хранения сведений об ответе
@@ -151,6 +137,7 @@ func shortingGetURL(res http.ResponseWriter, req *http.Request) {
 	res.Header().Del("Content-Encoding")
 	res.Header().Set("Content-Type", "text/plain") // Установим тип ответа text/plain
 	u := URLstorage.GetURL(id)
+	fmt.Println("--- --- ---", id, u)
 	if u.ID != 0 {
 		res.Header().Set("Location", u.URL)           // Укажем куда редирект
 		res.WriteHeader(http.StatusTemporaryRedirect) // Передаём 307
@@ -319,6 +306,7 @@ func compressExchange(next http.Handler) http.Handler {
 /*---------- Конец. Секция миддлаварей. ----------*/
 
 func InitStorage(p config.Parameters) storage.Storer {
+	return storage.Storer(&storage.FileStorageURL{FilePath: p.FileStoragePath})
 	if p.DatabaseDSN != "" {
 		return storage.Storer(&storage.DataBase{DataBaseDSN: p.DatabaseDSN})
 	} else if p.FileStoragePath != "" {
