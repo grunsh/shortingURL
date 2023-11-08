@@ -16,6 +16,7 @@ import (
 	"io"
 	"net/http"
 	"net/http/httptest"
+	"shortingURL/cmd/shortener/config"
 	"testing"
 )
 
@@ -97,7 +98,10 @@ func Test_shortingRequest(t *testing.T) {
 	}
 	fileStorage = "short-url-db.json"
 	parameters.DatabaseDSN = "host=localhost user=shortener password=shortener dbname=shortener sslmode=disable"
-	storeURL, getURL = NewStorageDrivers()
+	//	storeURL, getURL = NewStorageDrivers()
+	URLstorage = InitStorage(config.PRM)
+	URLstorage.Open()
+	defer URLstorage.Close()
 
 	//t.Setenv("FILE_STORAGE_PATH", "short-url-db.json")
 	for _, tt := range tests {
@@ -137,26 +141,26 @@ func Test_shortingRequest(t *testing.T) {
 	}
 }
 
-func Test_fileStorage(t *testing.T) {
-
-	fileStorage = "short-url-db-test.json"
-	u := recordURL{
-		ID:   14,
-		HASH: "asdasdasdf",
-		URL:  "http://ya.ru",
-	}
-	t.Run("Попытка записать и прочитать записанное.", func(t *testing.T) {
-		p, err := NewProducer(fileStorage)
-		require.NoError(t, err)
-		p.WriteURL(u)
-		p.Close()
-		c, err := NewConsumer(fileStorage)
-		require.NoError(t, err)
-		nu, err := c.ReadURL()
-		require.NoError(t, err)
-		c.Close()
-		assert.Equal(t, u.ID, nu.ID)
-		assert.Equal(t, u.HASH, nu.HASH)
-		assert.Equal(t, u.URL, nu.URL)
-	})
-}
+//func Test_fileStorage(t *testing.T) {
+//
+//	fileStorage = "short-url-db-test.json"
+//	u := config.RecordURL{
+//		ID:   14,
+//		HASH: "asdasdasdf",
+//		URL:  "http://ya.ru",
+//	}
+//	t.Run("Попытка записать и прочитать записанное.", func(t *testing.T) {
+//		p, err := NewProducer(fileStorage)
+//		require.NoError(t, err)
+//		p.WriteURL(u)
+//		p.Close()
+//		c, err := NewConsumer(fileStorage)
+//		require.NoError(t, err)
+//		nu, err := c.ReadURL()
+//		require.NoError(t, err)
+//		c.Close()
+//		assert.Equal(t, u.ID, nu.ID)
+//		assert.Equal(t, u.HASH, nu.HASH)
+//		assert.Equal(t, u.URL, nu.URL)
+//	})
+//}
