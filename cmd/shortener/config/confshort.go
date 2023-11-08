@@ -6,6 +6,21 @@ import (
 	"log"
 )
 
+const (
+	HashLen int = 10                                                     // Длина генерируемого хеша
+	Charset     = "abcdefghijklmnopqrstuvwxyzABCDEFGHIJKLMNOPQRSTUVWXYZ" // Для генератора хэшей
+)
+
+var PRM Parameters
+
+// Тип записи URL-а. Используется и в памяти и в файле в формате JSON
+type RecordURL struct {
+	ID    uint   `json:"uuid"`
+	HASH  string `json:"short_url"`
+	URL   string `json:"original_url"`
+	CorId string `json:"correlation_id"`
+}
+
 // Переменная для парсинга переменных окружения. Они в приоритете.
 var cfg struct {
 	ServerAddress   string `env:"SERVER_ADDRESS"`

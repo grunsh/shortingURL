@@ -10,7 +10,6 @@
 package main
 
 import (
-	"bufio"
 	"bytes"
 	"compress/gzip"
 	"context"
@@ -21,30 +20,16 @@ import (
 	_ "github.com/jackc/pgx/v5/stdlib"
 	"go.uber.org/zap"
 	"io"
-	"log"
-	"math/rand"
 	"net/http"
-	"os"
+	"reflect"
 	"shortingURL/cmd/shortener/config"
+	"shortingURL/cmd/shortener/storage"
 	"strings"
 	"time"
 )
 
-// Тип записи URL-а. Используется и в памяти и в файле в формате JSON
-type recordURL struct {
-	ID   uint   `json:"uuid"`
-	HASH string `json:"short_url"`
-	URL  string `json:"original_url"`
-}
-
 // Мапа для хранения урлов в памяти
-type urlDBtype map[string]recordURL
-
-type URLstorage struct {
-	u           urlDBtype
-	p           Producer
-	storageName string
-}
+type urlDBtype map[string]config.RecordURL
 
 // Блок зла. Глобальные переменные и константы
 var (
@@ -54,30 +39,19 @@ var (
 	fileStorage    string                //имя файла с црлами
 	SequenceUUID   uint              = 0 // Для генерации uuid в файле урлов
 	parameters     config.Parameters     //Глобалочка для параметров
-	prod           *Producer
-	err            error
-	db             *sql.DB
-	storeURL       func(u recordURL)
-	getURL         func(id string) recordURL
+	//	prod           *Producer
+	err        error
+	db         *sql.DB
+	storeURL   func(u config.RecordURL)
+	getURL     func(id string) config.RecordURL
+	URLstorage storage.Storer
 )
-
-//var schemaDB struct {
-//	schemaName             string
-//	table_name             string
-//	createSchemaIfNotExist string
-//	createTabeleIfNotExist string
-//}
 
 func createDB() {
 	q := "CREATE SCHEMA IF NOT EXISTS shortURL"
-	q = "CREATE table IF NOT EXISTS  shortURL.URL (id bigserial primary key, hash varchar(10), url varchar(255))"
+	q = "CREATE table IF NOT EXISTS  shortURL.URL (id bigserial primary key, hash varchar(10), url varchar(255), correlation_id varchar(255))"
 	fmt.Println(q)
 }
-
-const (
-	hashLen int = 10                                                     // Длина генерируемого хеша
-	charset     = "abcdefghijklmnopqrstuvwxyzABCDEFGHIJKLMNOPQRSTUVWXYZ" // Для генератора хэшей
-)
 
 type (
 	// структура для хранения сведений об ответе
@@ -147,36 +121,6 @@ func (r *loggingResponseWriter) WriteHeader(statusCode int) {
 	r.responseData.status = statusCode // захватываем код статуса
 }
 
-// Генератор сокращённого URL. Использует константу shortURLDomain как настройку.
-func addURL(url []byte) []byte {
-	hash := getHash()
-	u := recordURL{
-		ID:   nextSequenceID(),
-		HASH: hash,
-		URL:  string(url),
-	}
-	urlDB[hash] = u
-	//тут надо записать урл в...
-	storeURL(u)
-	return []byte(shortURLDomain + hash)
-}
-
-// Генератор хеша. Использует константу hashLen для определения длины
-func getHash() string {
-	sb := strings.Builder{}
-	sb.Grow(hashLen)
-	for i := 0; i < hashLen; i++ {
-		sb.WriteByte(charset[rand.Intn(len(charset))])
-	}
-	return sb.String()
-}
-
-// Генератор следующего uuid для базы урлов.
-func nextSequenceID() uint {
-	SequenceUUID += 1
-	return SequenceUUID
-}
-
 /*---------- Начало. Секция хендлеров ----------*/
 // Хендлер получения сокращённого URL. 307 и редирект, или ошибка.
 func ping(res http.ResponseWriter, req *http.Request) {
@@ -200,7 +144,7 @@ func shortingGetURL(res http.ResponseWriter, req *http.Request) {
 	id := req.URL.Path[1:] // Откусываем / и записываем id
 	res.Header().Del("Content-Encoding")
 	res.Header().Set("Content-Type", "text/plain") // Установим тип ответа text/plain
-	u := getURL(id)
+	u := URLstorage.GetURL(id)
 	if u.ID != 0 {
 		res.Header().Set("Location", u.URL)           // Укажем куда редирект
 		res.WriteHeader(http.StatusTemporaryRedirect) // Передаём 307
@@ -218,7 +162,7 @@ func shortingRequest(res http.ResponseWriter, req *http.Request) {
 		res.WriteHeader(http.StatusBadRequest)
 		return // Выход по 400
 	}
-	shrtURL := addURL(data)
+	shrtURL := URLstorage.StoreURL(data)
 	res.Header().Set("Content-Type", "text/plain") // Установим тип ответа text/plain
 	res.WriteHeader(http.StatusCreated)
 	res.Write(shrtURL)
@@ -246,7 +190,58 @@ func shortingJSON(res http.ResponseWriter, req *http.Request) {
 		res.WriteHeader(http.StatusBadRequest)
 		return // Выход по 400
 	}
-	respURL.Result = string(addURL([]byte(reqURL.URL)))
+	respURL.Result = string(URLstorage.StoreURL([]byte(reqURL.URL)))
+	resp, err := json.Marshal(respURL)
+	if err != nil {
+		res.Header().Set("Content-Type", "application/json") // Установим тип ответа application/json
+		res.WriteHeader(http.StatusBadRequest)
+		return // Выход по 400
+	}
+	res.Header().Set("Content-Type", "application/json") // Установим тип ответа application/json
+	res.WriteHeader(http.StatusCreated)
+	res.Write(resp)
+}
+
+// JSON хендлер для пакетного сокращения URL. На входе принимается URL как JSON
+func shortingJSONbatch(res http.ResponseWriter, req *http.Request) {
+	//type URLReq struct { // Тип для запроса с тегом url
+	//	Cor_id string `json:"correlation_id"`
+	//	URL    string `json:"original_url"`
+	//}
+	type URLResp struct { // Тип для ответа с тегом result
+		Cor_id   string `json:"correlation_id"`
+		ShortURL string `json:"short_url"`
+	}
+	//var reqURL []URLReq
+	var respURL []URLResp
+	var reqURL []config.RecordURL
+	var buf bytes.Buffer
+	_, err := buf.ReadFrom(req.Body) // Чтение тела запроса в буфер buf
+	fmt.Println(buf)
+	if err != nil {
+		res.Header().Set("Content-Type", "application/json") // Установим тип ответа application/json
+		res.WriteHeader(http.StatusBadRequest)
+		return // Выход по 400 (ошибка чтения тела запроса)
+	}
+	if err = json.Unmarshal(buf.Bytes(), &reqURL); err != nil {
+		res.Header().Set("Content-Type", "application/json") // Установим тип ответа application/json
+		res.WriteHeader(http.StatusBadRequest)
+		return // Выход по 400
+	}
+	//fmt.Println(reqURL)
+	//for i, r := range reqURL {
+	//	respURL = append(respURL, URLResp{Cor_id: r.CorId, ShortURL: config.PRM.ShortBaseURL + r.HASH})
+	//	fmt.Println(i, r)
+	//}
+	fmt.Println(reflect.TypeOf(reqURL))
+	fmt.Println(reflect.TypeOf(reqURL[0]))
+	//	respURL.Result = string(addURL([]byte(reqURL.URL)))
+	for _, u := range URLstorage.StoreURLbatch(reqURL) {
+		respURL = append(respURL, URLResp{
+			Cor_id:   u.CorId,
+			ShortURL: config.PRM.ShortBaseURL + u.HASH,
+		})
+	}
 	resp, err := json.Marshal(respURL)
 	if err != nil {
 		res.Header().Set("Content-Type", "application/json") // Установим тип ответа application/json
@@ -317,153 +312,15 @@ func compressExchange(next http.Handler) http.Handler {
 
 /*---------- Конец. Секция миддлаварей. ----------*/
 
-/*---------- Начало. Секция работы с файлом. ----------*/
-type Producer struct {
-	file   *os.File
-	writer *bufio.Writer
-}
-
-func NewProducer(fileName string) (*Producer, error) {
-	file, err := os.OpenFile(fileName, os.O_WRONLY|os.O_CREATE|os.O_APPEND, 0666)
-	if err != nil {
-		return nil, err
-	}
-	return &Producer{
-		file:   file,
-		writer: bufio.NewWriter(file),
-	}, nil
-}
-
-func (p *Producer) WriteURL(url recordURL) error {
-	data, err := json.Marshal(&url)
-	if err != nil {
-		return err
-	}
-	if _, err := p.writer.Write(data); err != nil {
-		return err
-	}
-	if err := p.writer.WriteByte('\n'); err != nil {
-		return err
-	}
-	// записываем буфер в файл
-	return p.writer.Flush()
-}
-
-func (p *Producer) Close() error {
-	return p.file.Close()
-}
-
-type Consumer struct {
-	file *os.File
-	// заменяем Reader на Scanner
-	scanner *bufio.Scanner
-}
-
-func NewConsumer(filename string) (*Consumer, error) {
-	file, err := os.OpenFile(filename, os.O_RDONLY|os.O_CREATE, 0666)
-	if err != nil {
-		return nil, err
-	}
-	return &Consumer{
-		file: file,
-		// создаём новый scanner
-		scanner: bufio.NewScanner(file),
-	}, nil
-}
-
-func (c *Consumer) ReadURL() (*recordURL, error) {
-	// одиночное сканирование до следующей строки
-	if !c.scanner.Scan() {
-		return nil, c.scanner.Err()
-	}
-	// читаем данные из scanner
-	data := c.scanner.Bytes()
-	url := recordURL{}
-	err := json.Unmarshal(data, &url)
-	if err != nil {
-		return nil, err
-	}
-	return &url, nil
-}
-
-func (c *Consumer) Close() error {
-	return c.file.Close()
-}
-
-/*---------- Конец. Секция работы с файлом. ----------*/
-
-func NewStorageDrivers() (func(u recordURL), func(id string) recordURL) {
-	if parameters.DatabaseDSN != "" { // Случай, когда работаем с БД. Начало. ---------------------------
-		var (
-			uuid uint
-			url  string
-		)
-		ps := parameters.DatabaseDSN
-		db, err = sql.Open("pgx", ps)
-		q := "CREATE SCHEMA IF NOT EXISTS shortURL"
-		db.QueryRow(q)
-		q = "CREATE table IF NOT EXISTS  shortURL.URL (id bigserial primary key, hash varchar(10), url varchar(255))"
-		db.QueryRow(q)
-		return func(u recordURL) { // Записыватель в БД
-				db.QueryRow("insert into shorturl.url (hash,url) values ($1,$2)", u.HASH, u.URL)
-			}, func(id string) recordURL { // Считыватель из БД
-				db.QueryRow("SELECT u.id, u.url FROM shorturl.url u WHERE u.hash = $1", id).Scan(&uuid, &url)
-				if uuid == 0 {
-					return recordURL{ID: 0, HASH: "", URL: ""}
-				} else {
-					return recordURL{ID: uuid, HASH: id, URL: url}
-				}
-			}
-		// Случай, когда работаем с БД. Начало. ---------------------------
-	} else if parameters.FileStoragePath != "" { // Случай, когда работаем с файлом. Начало --------------------------------
-		// Читаем весь файл в память, ибо нех в него каждый раз лазать, чтобы найти. Долго это. Никто так не работает.
-		Consumer, err := NewConsumer(parameters.FileStoragePath)
-		if err != nil {
-			log.Fatal(err)
-		}
-		u, _ := Consumer.ReadURL()
-		for u != nil {
-			if u.ID > SequenceUUID {
-				SequenceUUID = u.ID
-			}
-			urlDB[u.HASH] = *u
-			u, _ = Consumer.ReadURL()
-		}
-		Consumer.Close()
-		prod, err = NewProducer(parameters.FileStoragePath)
-		if err != nil {
-			panic("Ой")
-		}
-		return func(u recordURL) { // Записыватель в файл
-				prod.WriteURL(u)
-			}, func(id string) recordURL { // Считыватель "из файла" (на деле из памяти)
-				if val, ok := urlDB[id]; ok {
-					return val
-				} else {
-					return recordURL{ID: 0, HASH: "", URL: ""}
-				}
-			}
-
-	} else { // Случай, когда работаем с файлом. Конец --------------------------------
-		return func(u recordURL) { // Случай, когда работаем с памятью. НАчало --------------------------------
-				prod.WriteURL(u)
-			}, func(id string) recordURL {
-				if val, ok := urlDB[id]; ok {
-					return val
-				} else {
-					return recordURL{ID: 0, HASH: "", URL: ""}
-				}
-			}
-	} // Случай, когда работаем с памятью. КОнец --------------------------------
-
-}
-
 func main() {
 
-	parameters = config.GetParams() // Для начала получаем все параметры
-	fmt.Println(parameters)
-	storeURL, getURL = NewStorageDrivers()
-
+	config.PRM = config.GetParams() // Для начала получаем все параметры
+	fmt.Println(config.PRM)
+	//URLstorage = storage.Storer(&storage.InMemURL{})
+	URLstorage = storage.Storer(&storage.FileStorageURL{FilePath: config.PRM.FileStoragePath})
+	//	URLstorage = storage.Storer(&storage.DataBase{DataBaseDSN: config.PRM.DatabaseDSN})
+	URLstorage.Open()
+	defer URLstorage.Close()
 	shortURLDomain = parameters.ShortBaseURL
 
 	// Раскручиваем маховик журналирования
@@ -476,7 +333,7 @@ func main() {
 	sugar = *logger.Sugar() // делаем регистратор SugaredLogger
 	sugar.Infow(
 		"Starting server",
-		"addr", parameters.ServerAddress,
+		"addr", config.PRM.ServerAddress,
 	)
 
 	// Роутер. Регистрируем миддлвари, хендлеры и запускаемся.
@@ -486,8 +343,9 @@ func main() {
 	r.Get("/{id}", shortingGetURL)
 	r.Post("/", shortingRequest)
 	r.Post("/api/shorten", shortingJSON)
+	r.Post("/api/shorten/batch", shortingJSONbatch)
 	r.Get("/ping", ping)
-	err = http.ListenAndServe(parameters.ServerAddress, r)
+	err = http.ListenAndServe(config.PRM.ServerAddress, r)
 	if err != nil {
 		// вызываем панику, если ошибка
 		panic(err)
