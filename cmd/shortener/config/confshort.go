@@ -18,7 +18,7 @@ type RecordURL struct {
 	ID    uint   `json:"uuid"`
 	HASH  string `json:"short_url"`
 	URL   string `json:"original_url"`
-	CorId string `json:"correlation_id"`
+	CorID string `json:"correlation_id"`
 }
 
 // Переменная для парсинга переменных окружения. Они в приоритете.

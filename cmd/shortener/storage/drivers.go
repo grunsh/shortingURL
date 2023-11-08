@@ -50,7 +50,7 @@ func (f *InMemURL) StoreURLbatch(urls []config.RecordURL) []config.RecordURL {
 			ID:    fun.NextSequenceID(),
 			HASH:  hash,
 			URL:   u.URL,
-			CorId: u.CorId,
+			CorID: u.CorID,
 		}
 		URLdb[hash] = u
 		uResp = append(uResp, u)
@@ -124,7 +124,7 @@ func (f *FileStorageURL) StoreURLbatch(urls []config.RecordURL) []config.RecordU
 			ID:    fun.NextSequenceID(),
 			HASH:  hash,
 			URL:   u.URL,
-			CorId: u.CorId,
+			CorID: u.CorID,
 		}
 		Prod.WriteURL(u)
 		uResp = append(uResp, u)
@@ -220,7 +220,7 @@ func (f *DataBase) GetURL(hash string) config.RecordURL {
 	)
 	db.QueryRow("SELECT u.id, u.url FROM shorturl.url u WHERE u.hash = $1", hash).Scan(&uuid, &url)
 	if uuid == 0 {
-		return config.RecordURL{ID: 0, HASH: "", URL: "", CorId: ""}
+		return config.RecordURL{ID: 0, HASH: "", URL: "", CorID: ""}
 	} else {
 		return config.RecordURL{ID: uuid, HASH: hash, URL: url}
 	}
@@ -232,9 +232,9 @@ func (f *DataBase) StoreURL(url []byte) []byte {
 		ID:    fun.NextSequenceID(),
 		HASH:  hash,
 		URL:   string(url),
-		CorId: "",
+		CorID: "",
 	}
-	db.QueryRow("insert into shorturl.url (hash,url,correlation_id) values ($1,$2,$3)", u.HASH, u.URL, u.CorId)
+	db.QueryRow("insert into shorturl.url (hash,url,correlation_id) values ($1,$2,$3)", u.HASH, u.URL, u.CorID)
 	return []byte(config.PRM.ShortBaseURL + hash)
 }
 
@@ -250,9 +250,9 @@ func (f *DataBase) StoreURLbatch(urls []config.RecordURL) []config.RecordURL {
 			ID:    fun.NextSequenceID(),
 			HASH:  hash,
 			URL:   u.URL,
-			CorId: u.CorId,
+			CorID: u.CorID,
 		}
-		tx.Exec("insert into shorturl.url (hash,url,correlation_id) values ($1,$2,$3)", u.HASH, u.URL, u.CorId)
+		tx.Exec("insert into shorturl.url (hash,url,correlation_id) values ($1,$2,$3)", u.HASH, u.URL, u.CorID)
 		uResp = append(uResp, u)
 	}
 	tx.Commit()

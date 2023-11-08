@@ -211,11 +211,11 @@ func shortingJSON(res http.ResponseWriter, req *http.Request) {
 // JSON хендлер для пакетного сокращения URL. На входе принимается URL как JSON
 func shortingJSONbatch(res http.ResponseWriter, req *http.Request) {
 	//type URLReq struct { // Тип для запроса с тегом url
-	//	CorId string `json:"correlation_id"`
+	//	CorID string `json:"correlation_id"`
 	//	URL    string `json:"original_url"`
 	//}
 	type URLResp struct { // Тип для ответа с тегом result
-		CorId    string `json:"correlation_id"`
+		CorID    string `json:"correlation_id"`
 		ShortURL string `json:"short_url"`
 	}
 	//var reqURL []URLReq
@@ -236,7 +236,7 @@ func shortingJSONbatch(res http.ResponseWriter, req *http.Request) {
 	}
 	//fmt.Println(reqURL)
 	//for i, r := range reqURL {
-	//	respURL = append(respURL, URLResp{CorId: r.CorId, ShortURL: config.PRM.ShortBaseURL + r.HASH})
+	//	respURL = append(respURL, URLResp{CorID: r.CorID, ShortURL: config.PRM.ShortBaseURL + r.HASH})
 	//	fmt.Println(i, r)
 	//}
 	fmt.Println(reflect.TypeOf(reqURL))
@@ -244,7 +244,7 @@ func shortingJSONbatch(res http.ResponseWriter, req *http.Request) {
 	//	respURL.Result = string(addURL([]byte(reqURL.URL)))
 	for _, u := range URLstorage.StoreURLbatch(reqURL) {
 		respURL = append(respURL, URLResp{
-			CorId:    u.CorId,
+			CorID:    u.CorID,
 			ShortURL: config.PRM.ShortBaseURL + u.HASH,
 		})
 	}
