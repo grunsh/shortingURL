@@ -306,7 +306,6 @@ func compressExchange(next http.Handler) http.Handler {
 /*---------- Конец. Секция миддлаварей. ----------*/
 
 func InitStorage(p config.Parameters) storage.Storer {
-	return storage.Storer(&storage.FileStorageURL{FilePath: p.FileStoragePath})
 	if p.DatabaseDSN != "" {
 		return storage.Storer(&storage.DataBase{DataBaseDSN: p.DatabaseDSN})
 	} else if p.FileStoragePath != "" {
