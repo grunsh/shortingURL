@@ -40,6 +40,9 @@ func (f *InMemURL) StoreURL(url []byte) []byte {
 		URL:  string(url),
 	}
 	URLdb[hash] = u
+	OpenDataBase()
+	StoreURLinDataBase(url)
+	CloseDataBase()
 	return []byte(config.PRM.ShortBaseURL + hash)
 }
 
@@ -56,6 +59,9 @@ func (f *InMemURL) StoreURLbatch(urls []config.RecordURL) []config.RecordURL {
 		URLdb[hash] = u
 		uResp = append(uResp, u)
 	}
+	OpenDataBase()
+	StoreURLinDataBaseBatch(urls)
+	CloseDataBase()
 	return uResp
 }
 
@@ -117,6 +123,9 @@ func (f *FileStorageURL) StoreURL(url []byte) []byte {
 	}
 	URLdb[hash] = u
 	Prod.WriteURL(u)
+	OpenDataBase()
+	StoreURLinDataBase(url)
+	CloseDataBase()
 	return []byte(config.PRM.ShortBaseURL + hash)
 }
 
@@ -133,6 +142,9 @@ func (f *FileStorageURL) StoreURLbatch(urls []config.RecordURL) []config.RecordU
 		Prod.WriteURL(u)
 		uResp = append(uResp, u)
 	}
+	OpenDataBase()
+	StoreURLinDataBaseBatch(urls)
+	CloseDataBase()
 	return uResp
 }
 
@@ -231,6 +243,10 @@ func (f *DataBase) GetURL(hash string) config.RecordURL {
 }
 
 func (f *DataBase) StoreURL(url []byte) []byte {
+	return []byte(StoreURLinDataBase(url))
+}
+
+func StoreURLinDataBase(url []byte) []byte {
 	hash := fun.GetHash()
 	u := config.RecordURL{
 		ID:    0,
@@ -251,6 +267,10 @@ func (f *DataBase) StoreURL(url []byte) []byte {
 }
 
 func (f *DataBase) StoreURLbatch(urls []config.RecordURL) []config.RecordURL {
+	return StoreURLinDataBaseBatch(urls)
+}
+
+func StoreURLinDataBaseBatch(urls []config.RecordURL) []config.RecordURL {
 	var uResp []config.RecordURL
 	tx, err := db.Begin()
 	if err != nil {
@@ -274,6 +294,10 @@ func (f *DataBase) StoreURLbatch(urls []config.RecordURL) []config.RecordURL {
 
 // Метод инициализации хранилища. В данном случае, инициализируем мапу, а то ай-ай
 func (f *DataBase) Open() {
+	OpenDataBase()
+}
+
+func OpenDataBase() {
 	ps := config.PRM.DatabaseDSN
 	db, err = sql.Open("pgx", ps)
 	q := "CREATE SCHEMA IF NOT EXISTS shortURL"
@@ -284,6 +308,10 @@ func (f *DataBase) Open() {
 
 // Метод закрытия хранилища. В случае с памятью, крыть нечего.
 func (f *DataBase) Close() {
+	CloseDataBase()
+}
+
+func CloseDataBase() {
 	db.Close()
 }
 
