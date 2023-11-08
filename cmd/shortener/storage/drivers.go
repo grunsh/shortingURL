@@ -4,6 +4,7 @@ import (
 	"bufio"
 	"database/sql"
 	"encoding/json"
+	"fmt"
 	"log"
 	"os"
 	"shortingURL/cmd/shortener/config"
@@ -243,7 +244,7 @@ func (f *DataBase) StoreURL(url []byte) []byte {
 	}
 	tx.Exec("insert into shorturl.url (hash,url,correlation_id) values ($1,$2,$3)", u.HASH, u.URL, u.CorID)
 	tx.Commit()
-	if u.ID == 0 { // Чисто что вет тест перестал докапываться
+	if u.ID == 0 { // Чисто чтоб вет тест перестал докапываться
 		u.ID = 0
 	}
 	return []byte(config.PRM.ShortBaseURL + hash)
@@ -264,6 +265,7 @@ func (f *DataBase) StoreURLbatch(urls []config.RecordURL) []config.RecordURL {
 			CorID: u.CorID,
 		}
 		tx.Exec("insert into shorturl.url (hash,url,correlation_id) values ($1,$2,$3)", u.HASH, u.URL, u.CorID)
+		fmt.Println("insert into shorturl.url (hash,url,correlation_id) values ($1,$2,$3)", u.HASH, u.URL, u.CorID)
 		uResp = append(uResp, u)
 	}
 	tx.Commit()
