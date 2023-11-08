@@ -95,7 +95,7 @@ func (f *FileStorageURL) Open() {
 	Consumer.Close()
 	Prod, err = NewProducer(config.PRM.FileStoragePath)
 	if err != nil {
-		panic("Ой. Не получилось создать писателя в файл.")
+		panic("Ой. Не получилось создать писателя в файл. ")
 	}
 }
 
@@ -239,7 +239,7 @@ func (f *DataBase) StoreURL(url []byte) []byte {
 	}
 	tx, err := db.Begin()
 	if err != nil {
-		panic("Ой")
+		panic("Ой. Не получилось начать транзакцию.")
 	}
 	tx.Exec("insert into shorturl.url (hash,url,correlation_id) values ($1,$2,$3)", u.HASH, u.URL, u.CorID)
 	tx.Commit()
@@ -253,7 +253,7 @@ func (f *DataBase) StoreURLbatch(urls []config.RecordURL) []config.RecordURL {
 	var uResp []config.RecordURL
 	tx, err := db.Begin()
 	if err != nil {
-		panic("Ой.")
+		panic("Ой. Не получилось начать транзакцию в StoreURLbatch")
 	}
 	for _, u := range urls {
 		hash := fun.GetHash()
