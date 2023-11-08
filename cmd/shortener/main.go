@@ -130,6 +130,9 @@ func ping(res http.ResponseWriter, req *http.Request) {
 	} else {
 		ctx, cancel := context.WithTimeout(context.Background(), 2*time.Second)
 		defer cancel()
+		ps := config.PRM.DatabaseDSN
+		db, err = sql.Open("pgx", ps)
+		defer db.Close()
 		err = db.PingContext(ctx)
 		if err != nil {
 			res.WriteHeader(http.StatusInternalServerError)
@@ -205,11 +208,11 @@ func shortingJSON(res http.ResponseWriter, req *http.Request) {
 // JSON хендлер для пакетного сокращения URL. На входе принимается URL как JSON
 func shortingJSONbatch(res http.ResponseWriter, req *http.Request) {
 	//type URLReq struct { // Тип для запроса с тегом url
-	//	Cor_id string `json:"correlation_id"`
+	//	CorId string `json:"correlation_id"`
 	//	URL    string `json:"original_url"`
 	//}
 	type URLResp struct { // Тип для ответа с тегом result
-		Cor_id   string `json:"correlation_id"`
+		CorId    string `json:"correlation_id"`
 		ShortURL string `json:"short_url"`
 	}
 	//var reqURL []URLReq
@@ -230,7 +233,7 @@ func shortingJSONbatch(res http.ResponseWriter, req *http.Request) {
 	}
 	//fmt.Println(reqURL)
 	//for i, r := range reqURL {
-	//	respURL = append(respURL, URLResp{Cor_id: r.CorId, ShortURL: config.PRM.ShortBaseURL + r.HASH})
+	//	respURL = append(respURL, URLResp{CorId: r.CorId, ShortURL: config.PRM.ShortBaseURL + r.HASH})
 	//	fmt.Println(i, r)
 	//}
 	fmt.Println(reflect.TypeOf(reqURL))
@@ -238,7 +241,7 @@ func shortingJSONbatch(res http.ResponseWriter, req *http.Request) {
 	//	respURL.Result = string(addURL([]byte(reqURL.URL)))
 	for _, u := range URLstorage.StoreURLbatch(reqURL) {
 		respURL = append(respURL, URLResp{
-			Cor_id:   u.CorId,
+			CorId:    u.CorId,
 			ShortURL: config.PRM.ShortBaseURL + u.HASH,
 		})
 	}
@@ -363,6 +366,5 @@ func main() {
 		panic(err)
 	}
 	//sugar.Infow(http.ListenAndServe(serverName+":"+serverPort, r).Error().)
-	db.Close()
 
 }
