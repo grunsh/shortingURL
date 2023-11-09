@@ -161,6 +161,7 @@ func shortingRequest(res http.ResponseWriter, req *http.Request) {
 	if errors.As(er, &sqErr) {
 		fmt.Println("ERROR: ", er.Error())
 		res.WriteHeader(sqErr.Code)
+		res.Write(shrtURL)
 		return
 	}
 	res.WriteHeader(http.StatusCreated)
