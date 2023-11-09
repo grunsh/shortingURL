@@ -261,7 +261,7 @@ func StoreURLinDataBase(url []byte) []byte {
 	result, err := tx.Exec("insert into shorturl.url (hash,url,correlation_id) values ($1,$2,$3)", u.HASH, u.URL, u.CorID)
 	if err != nil {
 		log.Fatal(err)
-		fmt.Println(err.Error())
+		fmt.Println(err)
 	}
 	resu, err := result.RowsAffected()
 	if err != nil {
