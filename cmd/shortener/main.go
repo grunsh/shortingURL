@@ -133,6 +133,7 @@ func ping(res http.ResponseWriter, req *http.Request) {
 // Хендлер получения сокращённого URL. 307 и редирект, или ошибка.
 func shortingGetURL(res http.ResponseWriter, req *http.Request) {
 	id := req.URL.Path[1:] // Откусываем / и записываем id
+	req.Body.Close()
 	res.Header().Del("Content-Encoding")
 	res.Header().Set("Content-Type", "text/plain") // Установим тип ответа text/plain
 	u := URLstorage.GetURL(id)
