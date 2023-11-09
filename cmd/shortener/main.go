@@ -156,8 +156,8 @@ func shortingRequest(res http.ResponseWriter, req *http.Request) {
 		res.WriteHeader(http.StatusBadRequest)
 		return // Выход по 400
 	}
-	var sqErr *storage.ErrorsSQL
 	shrtURL, er := URLstorage.StoreURL(data)
+	var sqErr *storage.ErrorsSQL
 	if errors.As(er, &sqErr) {
 		fmt.Println("ERROR: ", er.Error())
 		res.WriteHeader(sqErr.Code)
@@ -177,27 +177,36 @@ func shortingJSON(res http.ResponseWriter, req *http.Request) {
 	}
 	var reqURL URLReq
 	var respURL URLResp
+	res.Header().Set("Content-Type", "application/json") // Установим тип ответа application/json
 	var buf bytes.Buffer
 	_, err := buf.ReadFrom(req.Body) // Чтение тела запроса в буфер buf
 	if err != nil {
-		res.Header().Set("Content-Type", "application/json") // Установим тип ответа application/json
 		res.WriteHeader(http.StatusBadRequest)
 		return // Выход по 400 (ошибка чтения тела запроса)
 	}
 	if err = json.Unmarshal(buf.Bytes(), &reqURL); err != nil {
-		res.Header().Set("Content-Type", "application/json") // Установим тип ответа application/json
 		res.WriteHeader(http.StatusBadRequest)
 		return // Выход по 400
 	}
 	r, err := URLstorage.StoreURL([]byte(reqURL.URL))
-	respURL.Result = string(r)
+	respURL.Result = string(r) //StoreURL возвращает []byte для хендлера с plain/text, а тут нам строка нужна
+	var sqErr *storage.ErrorsSQL
+	if errors.As(err, &sqErr) { // Смотрим, ошибка нам наша вернулась?
+		fmt.Println("ERROR: ", err.Error())
+		res.WriteHeader(sqErr.Code)
+		resp, err := json.Marshal(respURL)
+		if err != nil {
+			res.WriteHeader(sqErr.Code)
+			return // Выход по 400
+		}
+		res.Write(resp)
+		return
+	}
 	resp, err := json.Marshal(respURL)
 	if err != nil {
-		res.Header().Set("Content-Type", "application/json") // Установим тип ответа application/json
 		res.WriteHeader(http.StatusBadRequest)
 		return // Выход по 400
 	}
-	res.Header().Set("Content-Type", "application/json") // Установим тип ответа application/json
 	res.WriteHeader(http.StatusCreated)
 	res.Write(resp)
 }

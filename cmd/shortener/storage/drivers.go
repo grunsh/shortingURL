@@ -232,7 +232,9 @@ func NewSQLError(er error, t string, c int) error {
 	}
 }
 
-var ErrURLAlreadyExists = errors.New("URL you a trying to shorten already exisxts.")
+const (
+	Conflict = 409
+)
 
 type DataBase struct {
 	DataBaseDSN string
@@ -257,8 +259,8 @@ func (f *DataBase) StoreURL(url []byte) ([]byte, error) {
 
 func StoreURLinDataBase(url []byte) ([]byte, error) {
 	var (
-		hashDb string
-		urlDb  string
+		hashDB string
+		urlDB  string
 	)
 	hash := fun.GetHash()
 	u := config.RecordURL{
@@ -283,11 +285,11 @@ func StoreURLinDataBase(url []byte) ([]byte, error) {
 		fmt.Println(err.Error())
 	}
 	if resu != 1 {
-		tx.QueryRow("SELECT u.hash, u.url FROM shorturl.url u WHERE u.url = $1", string(url)).Scan(&hashDb, &urlDb)
-		er := NewSQLError(errors.New("ErErEr"), "Already shortened URL: "+urlDb, 409)
+		tx.QueryRow("SELECT u.hash, u.url FROM shorturl.url u WHERE u.url = $1", string(url)).Scan(&hashDB, &urlDB)
+		er := NewSQLError(errors.New("ErErEr"), "Already shortened URL: "+urlDB, Conflict)
 		fmt.Println(er)
 		fmt.Println("Не добавилось ничего: ", "insert into shorturl.url (hash,url,correlation_id) values ($1,$2,$3)", u.HASH, u.URL, u.CorID)
-		return []byte(config.PRM.ShortBaseURL + hashDb), er
+		return []byte(config.PRM.ShortBaseURL + hashDB), er
 	}
 	if u.ID == 0 { // Чисто чтоб вет тест перестал докапываться
 		u.ID = 0
