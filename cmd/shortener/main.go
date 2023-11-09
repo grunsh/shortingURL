@@ -310,7 +310,6 @@ func InitStorage(p config.Parameters) storage.Storer {
 func main() {
 
 	config.PRM = config.GetParams() // Для начала получаем все параметры
-	fmt.Println(config.PRM)
 	//URLstorage = storage.Storer(&storage.InMemURL{})
 	//URLstorage = storage.Storer(&storage.FileStorageURL{FilePath: config.PRM.FileStoragePath})
 	//URLstorage = storage.Storer(&storage.DataBase{DataBaseDSN: config.PRM.DatabaseDSN})
