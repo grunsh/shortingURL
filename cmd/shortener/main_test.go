@@ -100,13 +100,13 @@ func Test_shortingRequest(t *testing.T) {
 	config.PRM.DatabaseDSN = "host=localhost user=shortener password=shortener dbname=shortener sslmode=disable"
 	URLstorage = storage.InitStorage(config.PRM)
 	URLstorage.Open()
-	if config.PRM.DatabaseDSN != "" {
-		tx, _ := storage.DB.Begin()
-		for _, tt := range tests {
-			tx.Exec("delete from shorturl.url where url=$1", tt.request)
-		}
-		tx.Commit()
-	}
+	//if config.PRM.DatabaseDSN != "" {
+	//	tx, _ := storage.DB.Begin()
+	//	for _, tt := range tests {
+	//		tx.Exec("delete from shorturl.url where url=$1", tt.request)
+	//	}
+	//	tx.Commit()
+	//}
 	defer URLstorage.Close()
 
 	for _, tt := range tests {
