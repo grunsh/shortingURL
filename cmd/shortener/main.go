@@ -414,7 +414,7 @@ func NewStorageDrivers() (func(u recordURL), func(id string) recordURL) {
 					return recordURL{ID: uuid, HASH: id, URL: url}
 				}
 			}
-		// Случай, когда работаем с БД. Начало. ---------------------------
+		// Случай, когда работаем с БД. Конец. ---------------------------
 	} else if parameters.FileStoragePath != "" { // Случай, когда работаем с файлом. Начало --------------------------------
 		// Читаем весь файл в память, ибо нех в него каждый раз лазать, чтобы найти. Долго это. Никто так не работает.
 		Consumer, err := NewConsumer(parameters.FileStoragePath)
@@ -461,7 +461,6 @@ func NewStorageDrivers() (func(u recordURL), func(id string) recordURL) {
 func main() {
 
 	parameters = config.GetParams() // Для начала получаем все параметры
-	fmt.Println(parameters)
 	storeURL, getURL = NewStorageDrivers()
 
 	shortURLDomain = parameters.ShortBaseURL
