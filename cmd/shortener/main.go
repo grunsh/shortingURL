@@ -16,7 +16,6 @@ import (
 	"database/sql"
 	"encoding/json"
 	"errors"
-	"fmt"
 	"github.com/go-chi/chi/v5"
 	_ "github.com/jackc/pgx/v5/stdlib"
 	"go.uber.org/zap"
@@ -33,10 +32,9 @@ var (
 	shortURLDomain string            // Переменная используется в коде в разных местах, значение присваивается в начале работы их cfg
 	sugar          zap.SugaredLogger // регистратор журналов
 	parameters     config.Parameters //Глобалочка для параметров
-	//	prod           *Producer
-	err        error
-	db         *sql.DB
-	URLstorage storage.Storer
+	err            error
+	db             *sql.DB
+	URLstorage     storage.Storer
 )
 
 type (
@@ -138,7 +136,6 @@ func shortingGetURL(res http.ResponseWriter, req *http.Request) {
 	res.Header().Del("Content-Encoding")
 	res.Header().Set("Content-Type", "text/plain") // Установим тип ответа text/plain
 	u := URLstorage.GetURL(id)
-	fmt.Println("--- --- ---", id, u)
 	if u.ID != 0 {
 		res.Header().Set("Location", u.URL)           // Укажем куда редирект
 		res.WriteHeader(http.StatusTemporaryRedirect) // Передаём 307
@@ -152,14 +149,13 @@ func shortingRequest(res http.ResponseWriter, req *http.Request) {
 	data, err := io.ReadAll(req.Body)
 	req.Body.Close()
 	res.Header().Set("Content-Type", "text/plain") // Установим тип ответа text/plain
-	if err != nil {
+	if err != nil {                                // Если что-то не то с чтением запроса, выходим!
 		res.WriteHeader(http.StatusBadRequest)
 		return // Выход по 400
 	}
 	shrtURL, er := URLstorage.StoreURL(data)
 	var sqErr *storage.ErrorsSQL
 	if errors.As(er, &sqErr) {
-		fmt.Println("ERROR: ", er.Error())
 		res.WriteHeader(sqErr.Code)
 		res.Write(shrtURL)
 		return
@@ -192,8 +188,7 @@ func shortingJSON(res http.ResponseWriter, req *http.Request) {
 	r, err := URLstorage.StoreURL([]byte(reqURL.URL))
 	respURL.Result = string(r) //StoreURL возвращает []byte для хендлера с plain/text, а тут нам строка нужна
 	var sqErr *storage.ErrorsSQL
-	if errors.As(err, &sqErr) { // Смотрим, ошибка нам наша вернулась?
-		fmt.Println("ERROR: ", err.Error())
+	if errors.As(err, &sqErr) { // Смотрим, ошибка нам наша вернулась? Если да, то выведем сокращённый урл, и 409 ошибку
 		res.WriteHeader(sqErr.Code)
 		resp, err := json.Marshal(respURL)
 		if err != nil {
@@ -214,31 +209,24 @@ func shortingJSON(res http.ResponseWriter, req *http.Request) {
 
 // JSON хендлер для пакетного сокращения URL. На входе принимается URL как JSON
 func shortingJSONbatch(res http.ResponseWriter, req *http.Request) {
-	//type URLReq struct { // Тип для запроса с тегом url
-	//	CorID string `json:"correlation_id"`
-	//	URL    string `json:"original_url"`
-	//}
 	type URLResp struct { // Тип для ответа с тегом result
 		CorrelationID string `json:"correlation_id"`
 		ShortURL      string `json:"short_url"`
 	}
-	//var reqURL []URLReq
 	var respURL []URLResp
 	var reqURL []config.RecordURL
 	var buf bytes.Buffer
-	_, err := buf.ReadFrom(req.Body) // Чтение тела запроса в буфер buf
-	fmt.Println(buf)
-	if err != nil {
-		res.Header().Set("Content-Type", "application/json") // Установим тип ответа application/json
+	_, err := buf.ReadFrom(req.Body)                     // Чтение тела запроса в буфер buf
+	res.Header().Set("Content-Type", "application/json") // Установим тип ответа application/json
+	if err != nil {                                      // Если не удалось прочитать запрос, то выходить надо по 400
 		res.WriteHeader(http.StatusBadRequest)
 		return // Выход по 400 (ошибка чтения тела запроса)
 	}
-	if err = json.Unmarshal(buf.Bytes(), &reqURL); err != nil {
-		res.Header().Set("Content-Type", "application/json") // Установим тип ответа application/json
+	if err = json.Unmarshal(buf.Bytes(), &reqURL); err != nil { // Если не удалось распарсить JSON, вылетаем по 400
 		res.WriteHeader(http.StatusBadRequest)
 		return // Выход по 400
 	}
-	for _, u := range URLstorage.StoreURLbatch(reqURL) {
+	for _, u := range URLstorage.StoreURLbatch(reqURL) { //В цикле формируем массив элементов с тегированной структурой, как того требует задание.
 		respURL = append(respURL, URLResp{
 			CorrelationID: u.CorID,
 			ShortURL:      config.PRM.ShortBaseURL + u.HASH,
@@ -246,11 +234,9 @@ func shortingJSONbatch(res http.ResponseWriter, req *http.Request) {
 	}
 	resp, err := json.Marshal(respURL)
 	if err != nil {
-		res.Header().Set("Content-Type", "application/json") // Установим тип ответа application/json
 		res.WriteHeader(http.StatusBadRequest)
 		return // Выход по 400
 	}
-	res.Header().Set("Content-Type", "application/json") // Установим тип ответа application/json
 	res.WriteHeader(http.StatusCreated)
 	res.Write(resp)
 }
@@ -294,12 +280,10 @@ func compressExchange(next http.Handler) http.Handler {
 			r.Body = cr // меняем тело запроса на новое
 			defer cr.Close()
 		}
-
 		if !strings.Contains(r.Header.Get("Accept-Encoding"), "gzip") { // если нам не передали свою готовность к принятию сжатого, просто выходим.
 			next.ServeHTTP(w, r)
 			return
 		}
-
 		gz, err := gzip.NewWriterLevel(w, gzip.BestSpeed) // создаём gzip.Writer поверх текущего w
 		if err != nil {
 			io.WriteString(w, err.Error())
@@ -314,24 +298,9 @@ func compressExchange(next http.Handler) http.Handler {
 
 /*---------- Конец. Секция миддлаварей. ----------*/
 
-func InitStorage(p config.Parameters) storage.Storer {
-	if p.DatabaseDSN != "" {
-		return storage.Storer(&storage.DataBase{DataBaseDSN: p.DatabaseDSN})
-	} else if p.FileStoragePath != "" {
-		return storage.Storer(&storage.FileStorageURL{FilePath: p.FileStoragePath})
-	} else {
-		return storage.Storer(&storage.InMemURL{})
-	}
-
-}
-
 func main() {
-
-	config.PRM = config.GetParams() // Для начала получаем все параметры
-	//URLstorage = storage.Storer(&storage.InMemURL{})
-	//URLstorage = storage.Storer(&storage.FileStorageURL{FilePath: config.PRM.FileStoragePath})
-	//URLstorage = storage.Storer(&storage.DataBase{DataBaseDSN: config.PRM.DatabaseDSN})
-	URLstorage = InitStorage(config.PRM)
+	config.PRM = config.GetParams()              // Для начала получаем все параметры
+	URLstorage = storage.InitStorage(config.PRM) // В инит входит логика выбора хранилища + создание таблиц в БД, если БД.
 	URLstorage.Open()
 	defer URLstorage.Close()
 	shortURLDomain = parameters.ShortBaseURL
@@ -363,6 +332,4 @@ func main() {
 		// вызываем панику, если ошибка
 		panic(err)
 	}
-	//sugar.Infow(http.ListenAndServe(serverName+":"+serverPort, r).Error().)
-
 }

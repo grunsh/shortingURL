@@ -212,7 +212,7 @@ func (c *Consumer) Close() error {
 /*---------- Конец. Секция работы с файлом. ----------*/
 
 /*-------------------- Начало. Секция работы с постгрёй. --------------------*/
-var db *sql.DB
+var DB *sql.DB
 
 type ErrorsSQL struct {
 	Err  error
@@ -245,7 +245,7 @@ func (f *DataBase) GetURL(hash string) config.RecordURL {
 		uuid uint
 		url  string
 	)
-	db.QueryRow("SELECT u.id, u.url FROM shorturl.url u WHERE u.hash = $1", hash).Scan(&uuid, &url)
+	DB.QueryRow("SELECT u.id, u.url FROM shorturl.url u WHERE u.hash = $1", hash).Scan(&uuid, &url)
 	if uuid == 0 {
 		return config.RecordURL{ID: 0, HASH: "", URL: "", CorID: ""}
 	} else {
@@ -269,7 +269,7 @@ func StoreURLinDataBase(url []byte) ([]byte, error) {
 		URL:   string(url),
 		CorID: "",
 	}
-	tx, err := db.Begin()
+	tx, err := DB.Begin()
 	defer tx.Commit()
 	if err != nil {
 		panic("Ой. Не получилось начать транзакцию.")
@@ -303,7 +303,7 @@ func (f *DataBase) StoreURLbatch(urls []config.RecordURL) []config.RecordURL {
 
 func StoreURLinDataBaseBatch(urls []config.RecordURL) []config.RecordURL {
 	var uResp []config.RecordURL
-	tx, err := db.Begin()
+	tx, err := DB.Begin()
 	if err != nil {
 		panic("Ой. Не получилось начать транзакцию в StoreURLbatch")
 	}
@@ -330,14 +330,13 @@ func (f *DataBase) Open() {
 
 func OpenDataBase() {
 	ps := config.PRM.DatabaseDSN
-	db, err = sql.Open("pgx", ps)
+	DB, err = sql.Open("pgx", ps)
 	q := "CREATE SCHEMA IF NOT EXISTS shortURL"
-	db.QueryRow(q)
-	db.QueryRow(q)
+	DB.QueryRow(q)
 	q = "CREATE table IF NOT EXISTS  shortURL.URL (id bigserial primary key, hash varchar(10), url varchar(255), correlation_id varchar(255))"
-	db.QueryRow(q)
+	DB.QueryRow(q)
 	q = "CREATE UNIQUE INDEX url_url_idx ON shorturl.url (url)"
-	db.QueryRow(q)
+	DB.QueryRow(q)
 
 }
 
@@ -347,7 +346,17 @@ func (f *DataBase) Close() {
 }
 
 func CloseDataBase() {
-	db.Close()
+	DB.Close()
 }
 
 /*-------------------- Конец. Секция работы с постгрёй. --------------------*/
+
+func InitStorage(p config.Parameters) Storer {
+	if p.DatabaseDSN != "" {
+		return Storer(&DataBase{DataBaseDSN: p.DatabaseDSN})
+	} else if p.FileStoragePath != "" {
+		return Storer(&FileStorageURL{FilePath: p.FileStoragePath})
+	} else {
+		return Storer(&InMemURL{})
+	}
+}
