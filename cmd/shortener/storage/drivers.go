@@ -278,15 +278,15 @@ func StoreURLinDataBaseBatch(urls []config.RecordURL) []config.RecordURL {
 	}
 	for _, u := range urls {
 		hash := fun.GetHash()
-		u := config.RecordURL{
-			ID:    fun.NextSequenceID(),
+		ur := config.RecordURL{
+			ID:    0,
 			HASH:  hash,
 			URL:   u.URL,
 			CorID: u.CorID,
 		}
-		tx.Exec("insert into shorturl.url (hash,url,correlation_id) values ($1,$2,$3)", u.HASH, u.URL, u.CorID)
-		fmt.Println("insert into shorturl.url (hash,url,correlation_id) values ($1,$2,$3)", u.HASH, u.URL, u.CorID)
-		uResp = append(uResp, u)
+		tx.Exec("insert into shorturl.url (hash,url,correlation_id) values ($1,$2,$3)", ur.HASH, ur.URL, ur.CorID)
+		fmt.Println("insert into shorturl.url (hash,url,correlation_id) values ($1,$2,$3)", ur.HASH, ur.URL, ur.CorID)
+		uResp = append(uResp, ur)
 	}
 	tx.Commit()
 	return uResp

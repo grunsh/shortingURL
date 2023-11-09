@@ -21,7 +21,6 @@ import (
 	"go.uber.org/zap"
 	"io"
 	"net/http"
-	"reflect"
 	"shortingURL/cmd/shortener/config"
 	"shortingURL/cmd/shortener/storage"
 	"strings"
@@ -202,8 +201,8 @@ func shortingJSONbatch(res http.ResponseWriter, req *http.Request) {
 	//	URL    string `json:"original_url"`
 	//}
 	type URLResp struct { // Тип для ответа с тегом result
-		CorID    string `json:"correlation_id"`
-		ShortURL string `json:"short_url"`
+		CorrelationID string `json:"correlation_id"`
+		ShortURL      string `json:"short_url"`
 	}
 	//var reqURL []URLReq
 	var respURL []URLResp
@@ -221,18 +220,10 @@ func shortingJSONbatch(res http.ResponseWriter, req *http.Request) {
 		res.WriteHeader(http.StatusBadRequest)
 		return // Выход по 400
 	}
-	//fmt.Println(reqURL)
-	//for i, r := range reqURL {
-	//	respURL = append(respURL, URLResp{CorID: r.CorID, ShortURL: config.PRM.ShortBaseURL + r.HASH})
-	//	fmt.Println(i, r)
-	//}
-	fmt.Println(reflect.TypeOf(reqURL))
-	fmt.Println(reflect.TypeOf(reqURL[0]))
-	//	respURL.Result = string(addURL([]byte(reqURL.URL)))
 	for _, u := range URLstorage.StoreURLbatch(reqURL) {
 		respURL = append(respURL, URLResp{
-			CorID:    u.CorID,
-			ShortURL: config.PRM.ShortBaseURL + u.HASH,
+			CorrelationID: u.CorID,
+			ShortURL:      config.PRM.ShortBaseURL + u.HASH,
 		})
 	}
 	resp, err := json.Marshal(respURL)
