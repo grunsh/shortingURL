@@ -40,9 +40,6 @@ func (f *InMemURL) StoreURL(url []byte) []byte {
 		URL:  string(url),
 	}
 	URLdb[hash] = u
-	OpenDataBase()
-	StoreURLinDataBase(url)
-	CloseDataBase()
 	return []byte(config.PRM.ShortBaseURL + hash)
 }
 
@@ -59,9 +56,6 @@ func (f *InMemURL) StoreURLbatch(urls []config.RecordURL) []config.RecordURL {
 		URLdb[hash] = u
 		uResp = append(uResp, u)
 	}
-	OpenDataBase()
-	StoreURLinDataBaseBatch(urls)
-	CloseDataBase()
 	return uResp
 }
 
@@ -123,9 +117,6 @@ func (f *FileStorageURL) StoreURL(url []byte) []byte {
 	}
 	URLdb[hash] = u
 	Prod.WriteURL(u)
-	OpenDataBase()
-	StoreURLinDataBase(url)
-	CloseDataBase()
 	return []byte(config.PRM.ShortBaseURL + hash)
 }
 
@@ -142,9 +133,6 @@ func (f *FileStorageURL) StoreURLbatch(urls []config.RecordURL) []config.RecordU
 		Prod.WriteURL(u)
 		uResp = append(uResp, u)
 	}
-	OpenDataBase()
-	StoreURLinDataBaseBatch(urls)
-	CloseDataBase()
 	return uResp
 }
 
