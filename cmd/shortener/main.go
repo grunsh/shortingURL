@@ -15,6 +15,7 @@ import (
 	"context"
 	"database/sql"
 	"encoding/json"
+	"errors"
 	"fmt"
 	"github.com/go-chi/chi/v5"
 	_ "github.com/jackc/pgx/v5/stdlib"
@@ -150,13 +151,18 @@ func shortingGetURL(res http.ResponseWriter, req *http.Request) {
 func shortingRequest(res http.ResponseWriter, req *http.Request) {
 	data, err := io.ReadAll(req.Body)
 	req.Body.Close()
+	res.Header().Set("Content-Type", "text/plain") // Установим тип ответа text/plain
 	if err != nil {
-		res.Header().Set("Content-Type", "text/plain") // Установим тип ответа text/plain
 		res.WriteHeader(http.StatusBadRequest)
 		return // Выход по 400
 	}
-	shrtURL := URLstorage.StoreURL(data)
-	res.Header().Set("Content-Type", "text/plain") // Установим тип ответа text/plain
+	var sqErr *storage.ErrorsSQL
+	shrtURL, er := URLstorage.StoreURL(data)
+	if errors.As(er, &sqErr) {
+		fmt.Println("ERROR: ", er.Error())
+		res.WriteHeader(sqErr.Code)
+		return
+	}
 	res.WriteHeader(http.StatusCreated)
 	res.Write(shrtURL)
 }
@@ -183,7 +189,8 @@ func shortingJSON(res http.ResponseWriter, req *http.Request) {
 		res.WriteHeader(http.StatusBadRequest)
 		return // Выход по 400
 	}
-	respURL.Result = string(URLstorage.StoreURL([]byte(reqURL.URL)))
+	r, err := URLstorage.StoreURL([]byte(reqURL.URL))
+	respURL.Result = string(r)
 	resp, err := json.Marshal(respURL)
 	if err != nil {
 		res.Header().Set("Content-Type", "application/json") // Установим тип ответа application/json

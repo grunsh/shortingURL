@@ -4,6 +4,7 @@ import (
 	"bufio"
 	"database/sql"
 	"encoding/json"
+	"errors"
 	"fmt"
 	"log"
 	"os"
@@ -22,7 +23,7 @@ type InMemURL struct {
 
 type Storer interface {
 	Open()
-	StoreURL(url []byte) []byte
+	StoreURL(url []byte) ([]byte, error)
 	StoreURLbatch(urls []config.RecordURL) []config.RecordURL
 	GetURL(hash string) config.RecordURL
 	Close()
@@ -32,7 +33,7 @@ func (f *InMemURL) GetURL(hash string) config.RecordURL {
 	return URLdb[hash]
 }
 
-func (f *InMemURL) StoreURL(url []byte) []byte {
+func (f *InMemURL) StoreURL(url []byte) ([]byte, error) {
 	hash := fun.GetHash()
 	u := config.RecordURL{
 		ID:   fun.NextSequenceID(),
@@ -40,7 +41,7 @@ func (f *InMemURL) StoreURL(url []byte) []byte {
 		URL:  string(url),
 	}
 	URLdb[hash] = u
-	return []byte(config.PRM.ShortBaseURL + hash)
+	return []byte(config.PRM.ShortBaseURL + hash), nil
 }
 
 func (f *InMemURL) StoreURLbatch(urls []config.RecordURL) []config.RecordURL {
@@ -108,7 +109,7 @@ func (f *FileStorageURL) GetURL(hash string) config.RecordURL {
 	return URLdb[hash]
 }
 
-func (f *FileStorageURL) StoreURL(url []byte) []byte {
+func (f *FileStorageURL) StoreURL(url []byte) ([]byte, error) {
 	hash := fun.GetHash()
 	u := config.RecordURL{
 		ID:   fun.NextSequenceID(),
@@ -117,7 +118,7 @@ func (f *FileStorageURL) StoreURL(url []byte) []byte {
 	}
 	URLdb[hash] = u
 	Prod.WriteURL(u)
-	return []byte(config.PRM.ShortBaseURL + hash)
+	return []byte(config.PRM.ShortBaseURL + hash), nil
 }
 
 func (f *FileStorageURL) StoreURLbatch(urls []config.RecordURL) []config.RecordURL {
@@ -213,6 +214,26 @@ func (c *Consumer) Close() error {
 /*-------------------- Начало. Секция работы с постгрёй. --------------------*/
 var db *sql.DB
 
+type ErrorsSQL struct {
+	Err  error
+	Text string
+	Code int
+}
+
+func (e *ErrorsSQL) Error() string {
+	return e.Text
+}
+
+func NewSQLError(er error, t string, c int) error {
+	return &ErrorsSQL{
+		Err:  er,
+		Text: t,
+		Code: c,
+	}
+}
+
+var ErrURLAlreadyExists = errors.New("URL you a trying to shorten already exisxts.")
+
 type DataBase struct {
 	DataBaseDSN string
 }
@@ -230,11 +251,15 @@ func (f *DataBase) GetURL(hash string) config.RecordURL {
 	}
 }
 
-func (f *DataBase) StoreURL(url []byte) []byte {
-	return []byte(StoreURLinDataBase(url))
+func (f *DataBase) StoreURL(url []byte) ([]byte, error) {
+	return StoreURLinDataBase(url)
 }
 
-func StoreURLinDataBase(url []byte) []byte {
+func StoreURLinDataBase(url []byte) ([]byte, error) {
+	var (
+		hashDb string
+		urlDb  string
+	)
 	hash := fun.GetHash()
 	u := config.RecordURL{
 		ID:    0,
@@ -243,10 +268,11 @@ func StoreURLinDataBase(url []byte) []byte {
 		CorID: "",
 	}
 	tx, err := db.Begin()
+	defer tx.Commit()
 	if err != nil {
 		panic("Ой. Не получилось начать транзакцию.")
 	}
-	result, err := tx.Exec("insert into shorturl.url (hash,url,correlation_id) values ($1,$2,$3)", u.HASH, u.URL, u.CorID)
+	result, err := tx.Exec("insert into shorturl.url (hash,url,correlation_id) values ($1,$2,$3) on conflict (url) do nothing", u.HASH, u.URL, u.CorID)
 	if err != nil {
 		log.Fatal(err)
 		fmt.Println(err)
@@ -257,13 +283,16 @@ func StoreURLinDataBase(url []byte) []byte {
 		fmt.Println(err.Error())
 	}
 	if resu != 1 {
+		tx.QueryRow("SELECT u.hash, u.url FROM shorturl.url u WHERE u.url = $1", string(url)).Scan(&hashDb, &urlDb)
+		er := NewSQLError(errors.New("ErErEr"), "Already shortened URL: "+urlDb, 409)
+		fmt.Println(er)
 		fmt.Println("Не добавилось ничего: ", "insert into shorturl.url (hash,url,correlation_id) values ($1,$2,$3)", u.HASH, u.URL, u.CorID)
+		return []byte(config.PRM.ShortBaseURL + hashDb), er
 	}
-	tx.Commit()
 	if u.ID == 0 { // Чисто чтоб вет тест перестал докапываться
 		u.ID = 0
 	}
-	return []byte(config.PRM.ShortBaseURL + hash)
+	return []byte(config.PRM.ShortBaseURL + hash), nil
 }
 
 func (f *DataBase) StoreURLbatch(urls []config.RecordURL) []config.RecordURL {
@@ -305,6 +334,9 @@ func OpenDataBase() {
 	db.QueryRow(q)
 	q = "CREATE table IF NOT EXISTS  shortURL.URL (id bigserial primary key, hash varchar(10), url varchar(255), correlation_id varchar(255))"
 	db.QueryRow(q)
+	q = "CREATE UNIQUE INDEX url_url_idx ON shorturl.url (url)"
+	db.QueryRow(q)
+
 }
 
 // Метод закрытия хранилища. В случае с памятью, крыть нечего.
