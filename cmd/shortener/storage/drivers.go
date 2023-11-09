@@ -242,7 +242,19 @@ func (f *DataBase) StoreURL(url []byte) []byte {
 	if err != nil {
 		panic("Ой. Не получилось начать транзакцию.")
 	}
-	tx.Exec("insert into shorturl.url (hash,url,correlation_id) values ($1,$2,$3)", u.HASH, u.URL, u.CorID)
+	result, err := tx.Exec("insert into shorturl.url (hash,url,correlation_id) values ($1,$2,$3)", u.HASH, u.URL, u.CorID)
+	if err != nil {
+		log.Fatal(err)
+		fmt.Println(err.Error())
+	}
+	resu, err := result.RowsAffected()
+	if err != nil {
+		log.Fatal(err)
+		fmt.Println(err.Error())
+	}
+	if resu != 1 {
+		fmt.Println("Не добавилось ничего: ", "insert into shorturl.url (hash,url,correlation_id) values ($1,$2,$3)", u.HASH, u.URL, u.CorID)
+	}
 	tx.Commit()
 	if u.ID == 0 { // Чисто чтоб вет тест перестал докапываться
 		u.ID = 0
@@ -272,7 +284,7 @@ func (f *DataBase) StoreURLbatch(urls []config.RecordURL) []config.RecordURL {
 	return uResp
 }
 
-// Метод инициализации хранилища. В данном случае, инициализируем мапу, а то ай-ай
+// Метод инициализации хранилища. В данном случае, оформим запросы для создания схемы и таблиц, если их нет
 func (f *DataBase) Open() {
 	ps := config.PRM.DatabaseDSN
 	db, err = sql.Open("pgx", ps)
