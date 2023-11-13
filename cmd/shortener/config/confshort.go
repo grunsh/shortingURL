@@ -44,12 +44,6 @@ type FlagString struct {
 	usage    string
 }
 
-// Prms Структура, собирающая в себе все параметры
-/*var Prms []struct {
-	description string
-	param       FlagString
-}*/
-
 var (
 	Prms = map[string]struct {
 		description string

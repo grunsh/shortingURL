@@ -106,27 +106,28 @@ func (r *loggingResponseWriter) WriteHeader(statusCode int) {
 }
 
 /*---------- Начало. Секция хендлеров ----------*/
-// Хендлер получения сокращённого URL. 307 и редирект, или ошибка.
+// Хендлер пинга БД. 500, если не успели поингануться за 2 сек или вообще не дорвались, или умер контекст http-запроса.
 func ping(res http.ResponseWriter, req *http.Request) {
 	res.Header().Set("Content-Type", "text/plain")
 	if err != nil {
 		res.WriteHeader(http.StatusInternalServerError)
-	} else {
-		ctx, cancel := context.WithTimeout(context.Background(), 2*time.Second)
-		defer cancel()
-		ps := config.PRM.DatabaseDSN
-		db, err = sql.Open("pgx", ps)
-		if err != nil {
-			res.WriteHeader(http.StatusInternalServerError)
-		} else {
-			err = db.PingContext(ctx)
-			if err != nil {
-				res.WriteHeader(http.StatusInternalServerError)
-			}
-			res.WriteHeader(http.StatusOK)
-		}
-		db.Close()
+		return
 	}
+	ctx, cancel := context.WithTimeout(req.Context(), 2*time.Second)
+	defer cancel()
+	ps := config.PRM.DatabaseDSN
+	db, err = sql.Open("pgx", ps)
+	if err != nil {
+		res.WriteHeader(http.StatusInternalServerError)
+		return
+	}
+	err = db.PingContext(ctx)
+	if err != nil {
+		res.WriteHeader(http.StatusInternalServerError)
+		return
+	}
+	res.WriteHeader(http.StatusOK)
+	db.Close()
 }
 
 // Хендлер получения сокращённого URL. 307 и редирект, или ошибка.
