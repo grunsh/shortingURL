@@ -317,6 +317,7 @@ func StoreURLinDataBaseBatch(urls []config.RecordURL) []config.RecordURL {
 		}
 		_, err := tx.Exec("insert into shorturl.url (hash,url,correlation_id) values ($1,$2,$3)", ur.HASH, ur.URL, ur.CorID)
 		if err != nil {
+			fmt.Println("Ошибка транзакции.")
 			tx.Rollback()
 			return []config.RecordURL{}
 		}
