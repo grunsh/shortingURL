@@ -302,7 +302,7 @@ func (f *DataBase) StoreURLbatch(urls []config.RecordURL) []config.RecordURL {
 }
 
 func StoreURLinDataBaseBatch(urls []config.RecordURL) []config.RecordURL {
-	var uResp []config.RecordURL
+	uResp := make([]config.RecordURL, len(urls))
 	tx, err := DB.Begin()
 	if err != nil {
 		panic("Ой. Не получилось начать транзакцию в StoreURLbatch")
@@ -315,8 +315,11 @@ func StoreURLinDataBaseBatch(urls []config.RecordURL) []config.RecordURL {
 			URL:   u.URL,
 			CorID: u.CorID,
 		}
-		tx.Exec("insert into shorturl.url (hash,url,correlation_id) values ($1,$2,$3)", ur.HASH, ur.URL, ur.CorID)
-		fmt.Println("insert into shorturl.url (hash,url,correlation_id) values ($1,$2,$3)", ur.HASH, ur.URL, ur.CorID)
+		_, err := tx.Exec("insert into shorturl.url (hash,url,correlation_id) values ($1,$2,$3)", ur.HASH, ur.URL, ur.CorID)
+		if err != nil {
+			tx.Rollback()
+			return []config.RecordURL{}
+		}
 		uResp = append(uResp, ur)
 	}
 	tx.Commit()
@@ -342,10 +345,6 @@ func OpenDataBase() {
 
 // Метод закрытия хранилища. В случае с памятью, крыть нечего.
 func (f *DataBase) Close() {
-	CloseDataBase()
-}
-
-func CloseDataBase() {
 	DB.Close()
 }
 
@@ -356,7 +355,6 @@ func InitStorage(p config.Parameters) Storer {
 		return Storer(&DataBase{DataBaseDSN: p.DatabaseDSN})
 	} else if p.FileStoragePath != "" {
 		return Storer(&FileStorageURL{FilePath: p.FileStoragePath})
-	} else {
-		return Storer(&InMemURL{})
 	}
+	return Storer(&InMemURL{})
 }
