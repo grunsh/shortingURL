@@ -16,12 +16,15 @@ import (
 	"database/sql"
 	"encoding/json"
 	"errors"
+	"fmt"
 	"github.com/go-chi/chi/v5"
+	"github.com/google/uuid"
 	_ "github.com/jackc/pgx/v5/stdlib"
 	"go.uber.org/zap"
 	"io"
 	"net/http"
 	"shortingURL/cmd/shortener/config"
+	"shortingURL/cmd/shortener/crypto"
 	"shortingURL/cmd/shortener/storage"
 	"strings"
 	"time"
@@ -35,6 +38,7 @@ var (
 	err            error
 	db             *sql.DB
 	URLstorage     storage.Storer
+	ShrtUserId     string
 )
 
 type (
@@ -269,6 +273,39 @@ func logHTTPInfo(h http.Handler) http.Handler {
 	return http.HandlerFunc(logHTTPRequests)
 }
 
+func setCookie(h http.Handler) http.Handler {
+	setCook := func(w http.ResponseWriter, r *http.Request) {
+		rc, er := r.Cookie("nested")
+		if er == nil {
+			if rc.Name == "nested" {
+				fmt.Println("Уже есть кука:", rc.Value)
+				ShrtUserId = string(crypto.DecryptUid([]byte(rc.Value)))
+				h.ServeHTTP(w, r)
+				return
+			}
+		} else {
+			uid := uuid.New().String()
+			c := http.Cookie{Name: "nested", Value: string(crypto.EncryptUid([]byte(uid)))}
+			fmt.Println("Куканули", c.Value)
+			http.SetCookie(w, &c)
+			h.ServeHTTP(w, r)
+		}
+	}
+	return http.HandlerFunc(setCook)
+}
+
+func getCookie(h http.Handler) http.Handler {
+	getCook := func(w http.ResponseWriter, r *http.Request) {
+		c, er := r.Cookie("TestCoocie")
+		h.ServeHTTP(w, r)
+		if er != nil {
+
+		}
+		fmt.Println(c)
+	}
+	return http.HandlerFunc(getCook)
+}
+
 // миддлварь-сжиматор тельца ответа и разжиматор тельца запросов
 func compressExchange(next http.Handler) http.Handler {
 	return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
@@ -300,6 +337,13 @@ func compressExchange(next http.Handler) http.Handler {
 /*---------- Конец. Секция миддлаварей. ----------*/
 
 func main() {
+
+	//rt := "Привет!"
+	//fmt.Println(rt)
+	//rtc := crypto.EncryptUid([]byte(rt))
+	//fmt.Println(string(rtc))
+	//fmt.Println(string(crypto.DecryptUid(rtc)))
+
 	config.PRM = config.GetParams()              // Для начала получаем все параметры
 	URLstorage = storage.InitStorage(config.PRM) // В инит входит логика выбора хранилища + создание таблиц в БД, если БД.
 	URLstorage.Open()
@@ -323,6 +367,8 @@ func main() {
 	r := chi.NewRouter()
 	r.Use(compressExchange) // Встраиваем сжиматор-разжиматор
 	r.Use(logHTTPInfo)      // Встраиваем логгер в роутер
+	r.Use(setCookie)        // Встраиваем кукиятор
+	r.Use(getCookie)        // Встраиваем раскукиятор
 	r.Get("/{id}", shortingGetURL)
 	r.Post("/", shortingRequest)
 	r.Post("/api/shorten", shortingJSON)

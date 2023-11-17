@@ -7,6 +7,7 @@ import (
 	"errors"
 	"fmt"
 	"log"
+	"net/http"
 	"os"
 	"shortingURL/cmd/shortener/config"
 	fun "shortingURL/cmd/shortener/f"
@@ -233,7 +234,7 @@ func NewSQLError(er error, t string, c int) error {
 }
 
 const (
-	Conflict = 409
+	Conflict = http.StatusConflict
 )
 
 type DataBase struct {
