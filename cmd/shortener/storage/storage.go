@@ -288,7 +288,7 @@ func (f *DataBase) GetUserURLs(UserID string) []config.RecordURL {
 		url  string
 	)
 	rows, err := DB.Query("SELECT hash,url FROM shorturl.url WHERE shrt_uuid=$1", UserID)
-	if err != nil {
+	if rows.Err() != nil || err != nil {
 		panic("Ой. Не получилось запросить урлы пользака")
 	}
 	defer rows.Close()
