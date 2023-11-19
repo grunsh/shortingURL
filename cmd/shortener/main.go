@@ -14,6 +14,7 @@ import (
 	"compress/gzip"
 	"context"
 	"database/sql"
+	"encoding/hex"
 	"encoding/json"
 	"errors"
 	"fmt"
@@ -39,6 +40,14 @@ var (
 	db             *sql.DB
 	URLstorage     storage.Storer
 	ShrtUserId     string
+)
+
+// Замес для передачи пользака из мидлвари в хендлер.
+// Злые языки говорят, что передавать данные через контекст - ЗЛО, но народ гутарит, что для передачи из мидлвари в хендлер - норм тема.
+type ctxKey string
+
+const (
+	UserId ctxKey = "ShrtUserId"
 )
 
 type (
@@ -151,6 +160,8 @@ func shortingGetURL(res http.ResponseWriter, req *http.Request) {
 
 // Хендлер для сокращения URL. На входе принимается URL как text/plain
 func shortingRequest(res http.ResponseWriter, req *http.Request) {
+	userID, _ := req.Context().Value(UserId).(string)
+	fmt.Println(userID)
 	data, err := io.ReadAll(req.Body)
 	req.Body.Close()
 	res.Header().Set("Content-Type", "text/plain") // Установим тип ответа text/plain
@@ -158,7 +169,7 @@ func shortingRequest(res http.ResponseWriter, req *http.Request) {
 		res.WriteHeader(http.StatusBadRequest)
 		return // Выход по 400
 	}
-	shrtURL, er := URLstorage.StoreURL(data)
+	shrtURL, er := URLstorage.StoreURL(data, userID)
 	var sqErr *storage.ErrorsSQL
 	if errors.As(er, &sqErr) {
 		res.WriteHeader(sqErr.Code)
@@ -171,6 +182,7 @@ func shortingRequest(res http.ResponseWriter, req *http.Request) {
 
 // JSON хендлер для сокращения URL. На входе принимается URL как JSON
 func shortingJSON(res http.ResponseWriter, req *http.Request) {
+	userID, _ := req.Context().Value(UserId).(string)
 	type URLReq struct { // Тип для запроса с тегом url
 		URL string `json:"url"`
 	}
@@ -190,7 +202,7 @@ func shortingJSON(res http.ResponseWriter, req *http.Request) {
 		res.WriteHeader(http.StatusBadRequest)
 		return // Выход по 400
 	}
-	r, err := URLstorage.StoreURL([]byte(reqURL.URL))
+	r, err := URLstorage.StoreURL([]byte(reqURL.URL), userID)
 	respURL.Result = string(r) //StoreURL возвращает []byte для хендлера с plain/text, а тут нам строка нужна
 	var sqErr *storage.ErrorsSQL
 	if errors.As(err, &sqErr) { // Смотрим, ошибка нам наша вернулась? Если да, то выведем сокращённый урл, и 409 ошибку
@@ -221,6 +233,7 @@ func shortingJSONbatch(res http.ResponseWriter, req *http.Request) {
 	var respURL []URLResp
 	var reqURL []config.RecordURL
 	var buf bytes.Buffer
+	userID, _ := req.Context().Value(UserId).(string)
 	_, err := buf.ReadFrom(req.Body)                     // Чтение тела запроса в буфер buf
 	res.Header().Set("Content-Type", "application/json") // Установим тип ответа application/json
 	if err != nil {                                      // Если не удалось прочитать запрос, то выходить надо по 400
@@ -231,7 +244,7 @@ func shortingJSONbatch(res http.ResponseWriter, req *http.Request) {
 		res.WriteHeader(http.StatusBadRequest)
 		return // Выход по 400
 	}
-	for _, u := range URLstorage.StoreURLbatch(reqURL) { //В цикле формируем массив элементов с тегированной структурой, как того требует задание.
+	for _, u := range URLstorage.StoreURLbatch(reqURL, userID) { //В цикле формируем массив элементов с тегированной структурой, как того требует задание.
 		respURL = append(respURL, URLResp{
 			CorrelationID: u.CorID,
 			ShortURL:      config.PRM.ShortBaseURL + u.HASH,
@@ -273,37 +286,30 @@ func logHTTPInfo(h http.Handler) http.Handler {
 	return http.HandlerFunc(logHTTPRequests)
 }
 
-func setCookie(h http.Handler) http.Handler {
-	setCook := func(w http.ResponseWriter, r *http.Request) {
+func serveCookie(h http.Handler) http.Handler {
+	serveCook := func(w http.ResponseWriter, r *http.Request) {
 		rc, er := r.Cookie("nested")
-		if er == nil {
-			if rc.Name == "nested" {
-				fmt.Println("Уже есть кука:", rc.Value)
-				ShrtUserId = string(crypto.DecryptUid([]byte(rc.Value)))
-				h.ServeHTTP(w, r)
+		if er == nil { // ошибок с кукнёй нет
+			if rc.Name == "nested" { // нашлась кука, которая нам нужна
+				decoded, _ := hex.DecodeString(rc.Value)                  // Забивая на ошибку раскодируем из хекса, чтоб нам не дропали всякие символы
+				ShrtUserId = string(crypto.DecryptUid(decoded))           // Расшифровываем uid и строчим его
+				ctx := context.WithValue(r.Context(), UserId, ShrtUserId) // Заложим в контекст идентификатор пользака
+				h.ServeHTTP(w, r.WithContext(ctx))
 				return
 			}
-		} else {
-			uid := uuid.New().String()
-			c := http.Cookie{Name: "nested", Value: string(crypto.EncryptUid([]byte(uid)))}
-			fmt.Println("Куканули", c.Value)
+		} else if er.Error() == "http: named cookie not present" { // с куками всё норм, но нет того, что нам надо, засадим
+			uid := uuid.New().String() // Генерим строковый uid
+			ShrtUserId = uid
+			crypted := hex.EncodeToString(crypto.EncryptUid([]byte(uid))) // Байтим, шифруем, кодируем в хекс, чтобы не сломалось в куковой кухне
+			c := http.Cookie{Name: "nested", Value: crypted}              // Впердоливаем
 			http.SetCookie(w, &c)
-			h.ServeHTTP(w, r)
+			ctx := context.WithValue(r.Context(), UserId, ShrtUserId) // Заложим в контекст идентификатор пользака
+			h.ServeHTTP(w, r.WithContext(ctx))
+			return
 		}
-	}
-	return http.HandlerFunc(setCook)
-}
-
-func getCookie(h http.Handler) http.Handler {
-	getCook := func(w http.ResponseWriter, r *http.Request) {
-		c, er := r.Cookie("TestCoocie")
 		h.ServeHTTP(w, r)
-		if er != nil {
-
-		}
-		fmt.Println(c)
 	}
-	return http.HandlerFunc(getCook)
+	return http.HandlerFunc(serveCook)
 }
 
 // миддлварь-сжиматор тельца ответа и разжиматор тельца запросов
@@ -367,8 +373,7 @@ func main() {
 	r := chi.NewRouter()
 	r.Use(compressExchange) // Встраиваем сжиматор-разжиматор
 	r.Use(logHTTPInfo)      // Встраиваем логгер в роутер
-	r.Use(setCookie)        // Встраиваем кукиятор
-	r.Use(getCookie)        // Встраиваем раскукиятор
+	r.Use(serveCookie)      // Встраиваем кукиятор
 	r.Get("/{id}", shortingGetURL)
 	r.Post("/", shortingRequest)
 	r.Post("/api/shorten", shortingJSON)

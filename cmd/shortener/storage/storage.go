@@ -15,6 +15,8 @@ import (
 
 var err error
 
+var ShrtUserId string
+
 type URLdbtyoe map[string]config.RecordURL
 
 var URLdb URLdbtyoe
@@ -24,8 +26,8 @@ type InMemURL struct {
 
 type Storer interface {
 	Open()
-	StoreURL(url []byte) ([]byte, error)
-	StoreURLbatch(urls []config.RecordURL) []config.RecordURL
+	StoreURL(url []byte, userId string) ([]byte, error)
+	StoreURLbatch(urls []config.RecordURL, userId string) []config.RecordURL
 	GetURL(hash string) config.RecordURL
 	Close()
 }
@@ -34,26 +36,28 @@ func (f *InMemURL) GetURL(hash string) config.RecordURL {
 	return URLdb[hash]
 }
 
-func (f *InMemURL) StoreURL(url []byte) ([]byte, error) {
+func (f *InMemURL) StoreURL(url []byte, userId string) ([]byte, error) {
 	hash := fun.GetHash()
 	u := config.RecordURL{
-		ID:   fun.NextSequenceID(),
-		HASH: hash,
-		URL:  string(url),
+		ID:     fun.NextSequenceID(),
+		HASH:   hash,
+		URL:    string(url),
+		UserId: userId,
 	}
 	URLdb[hash] = u
 	return []byte(config.PRM.ShortBaseURL + hash), nil
 }
 
-func (f *InMemURL) StoreURLbatch(urls []config.RecordURL) []config.RecordURL {
+func (f *InMemURL) StoreURLbatch(urls []config.RecordURL, userId string) []config.RecordURL {
 	var uResp []config.RecordURL
 	for _, u := range urls {
 		hash := fun.GetHash()
 		u := config.RecordURL{
-			ID:    fun.NextSequenceID(),
-			HASH:  hash,
-			URL:   u.URL,
-			CorID: u.CorID,
+			ID:     fun.NextSequenceID(),
+			HASH:   hash,
+			URL:    u.URL,
+			CorID:  u.CorID,
+			UserId: userId,
 		}
 		URLdb[hash] = u
 		uResp = append(uResp, u)
@@ -110,27 +114,29 @@ func (f *FileStorageURL) GetURL(hash string) config.RecordURL {
 	return URLdb[hash]
 }
 
-func (f *FileStorageURL) StoreURL(url []byte) ([]byte, error) {
+func (f *FileStorageURL) StoreURL(url []byte, userId string) ([]byte, error) {
 	hash := fun.GetHash()
 	u := config.RecordURL{
-		ID:   fun.NextSequenceID(),
-		HASH: hash,
-		URL:  string(url),
+		ID:     fun.NextSequenceID(),
+		HASH:   hash,
+		URL:    string(url),
+		UserId: userId,
 	}
 	URLdb[hash] = u
 	Prod.WriteURL(u)
 	return []byte(config.PRM.ShortBaseURL + hash), nil
 }
 
-func (f *FileStorageURL) StoreURLbatch(urls []config.RecordURL) []config.RecordURL {
+func (f *FileStorageURL) StoreURLbatch(urls []config.RecordURL, userId string) []config.RecordURL {
 	var uResp []config.RecordURL
 	for _, u := range urls {
 		hash := fun.GetHash()
 		u := config.RecordURL{
-			ID:    fun.NextSequenceID(),
-			HASH:  hash,
-			URL:   u.URL,
-			CorID: u.CorID,
+			ID:     fun.NextSequenceID(),
+			HASH:   hash,
+			URL:    u.URL,
+			CorID:  u.CorID,
+			UserId: userId,
 		}
 		Prod.WriteURL(u)
 		uResp = append(uResp, u)
@@ -254,28 +260,29 @@ func (f *DataBase) GetURL(hash string) config.RecordURL {
 	}
 }
 
-func (f *DataBase) StoreURL(url []byte) ([]byte, error) {
-	return StoreURLinDataBase(url)
+func (f *DataBase) StoreURL(url []byte, userId string) ([]byte, error) {
+	return StoreURLinDataBase(url, userId)
 }
 
-func StoreURLinDataBase(url []byte) ([]byte, error) {
+func StoreURLinDataBase(url []byte, userId string) ([]byte, error) {
 	var (
 		hashDB string
 		urlDB  string
 	)
 	hash := fun.GetHash()
 	u := config.RecordURL{
-		ID:    0,
-		HASH:  hash,
-		URL:   string(url),
-		CorID: "",
+		ID:     0,
+		HASH:   hash,
+		URL:    string(url),
+		CorID:  "",
+		UserId: userId,
 	}
 	tx, err := DB.Begin()
 	defer tx.Commit()
 	if err != nil {
 		panic("Ой. Не получилось начать транзакцию.")
 	}
-	result, err := tx.Exec("insert into shorturl.url (hash,url,correlation_id) values ($1,$2,$3) on conflict (url) do nothing", u.HASH, u.URL, u.CorID)
+	result, err := tx.Exec("insert into shorturl.url (hash,url,correlation_id,shrt_uuid) values ($1,$2,$3,$4) on conflict (url) do nothing", u.HASH, u.URL, u.CorID, u.UserId)
 	if err != nil {
 		log.Fatal(err)
 		fmt.Println(err)
@@ -289,7 +296,7 @@ func StoreURLinDataBase(url []byte) ([]byte, error) {
 		tx.QueryRow("SELECT u.hash, u.url FROM shorturl.url u WHERE u.url = $1", string(url)).Scan(&hashDB, &urlDB)
 		er := NewSQLError(errors.New("ErErEr"), "Already shortened URL: "+urlDB, Conflict)
 		fmt.Println(er)
-		fmt.Println("Не добавилось ничего: ", "insert into shorturl.url (hash,url,correlation_id) values ($1,$2,$3)", u.HASH, u.URL, u.CorID)
+		fmt.Println("Не добавилось ничего: ", "insert into shorturl.url (hash,url,correlation_id,shrt_uuid) values ($1,$2,$3,$4)", u.HASH, u.URL, u.CorID, u.UserId)
 		return []byte(config.PRM.ShortBaseURL + hashDB), er
 	}
 	if u.ID == 0 { // Чисто чтоб вет тест перестал докапываться
@@ -298,11 +305,7 @@ func StoreURLinDataBase(url []byte) ([]byte, error) {
 	return []byte(config.PRM.ShortBaseURL + hash), nil
 }
 
-func (f *DataBase) StoreURLbatch(urls []config.RecordURL) []config.RecordURL {
-	return StoreURLinDataBaseBatch(urls)
-}
-
-func StoreURLinDataBaseBatch(urls []config.RecordURL) []config.RecordURL {
+func (f *DataBase) StoreURLbatch(urls []config.RecordURL, userId string) []config.RecordURL {
 	uResp := make([]config.RecordURL, len(urls))
 	tx, err := DB.Begin()
 	if err != nil {
@@ -311,12 +314,13 @@ func StoreURLinDataBaseBatch(urls []config.RecordURL) []config.RecordURL {
 	for i, u := range urls {
 		hash := fun.GetHash()
 		ur := config.RecordURL{
-			ID:    0,
-			HASH:  hash,
-			URL:   u.URL,
-			CorID: u.CorID,
+			ID:     0,
+			HASH:   hash,
+			URL:    u.URL,
+			CorID:  u.CorID,
+			UserId: userId,
 		}
-		_, err := tx.Exec("insert into shorturl.url (hash,url,correlation_id) values ($1,$2,$3)", ur.HASH, ur.URL, ur.CorID)
+		_, err := tx.Exec("insert into shorturl.url (hash,url,correlation_id,shrt_uuid) values ($1,$2,$3,$4)", ur.HASH, ur.URL, ur.CorID, ur.UserId)
 		if err != nil {
 			tx.Rollback()
 			return []config.RecordURL{}
@@ -337,7 +341,7 @@ func OpenDataBase() {
 	DB, err = sql.Open("pgx", ps)
 	q := "CREATE SCHEMA IF NOT EXISTS shortURL"
 	DB.QueryRow(q)
-	q = "CREATE table IF NOT EXISTS  shortURL.URL (id bigserial primary key, hash varchar(10), url varchar(255), correlation_id varchar(255))"
+	q = "CREATE table IF NOT EXISTS  shortURL.URL (id bigserial primary key, hash varchar(10), url varchar(255), correlation_id varchar(255)), shrt_uuid char(36)"
 	DB.QueryRow(q)
 	q = "CREATE UNIQUE INDEX url_url_idx ON shorturl.url (url)"
 	DB.QueryRow(q)

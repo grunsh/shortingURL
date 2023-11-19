@@ -15,10 +15,11 @@ var PRM Parameters
 
 // Тип записи URL-а. Используется и в памяти и в файле в формате JSON
 type RecordURL struct {
-	ID    uint   `json:"uuid"`
-	HASH  string `json:"short_url"`
-	URL   string `json:"original_url"`
-	CorID string `json:"correlation_id"`
+	ID     uint   `json:"uuid"`
+	HASH   string `json:"short_url"`
+	URL    string `json:"original_url"`
+	CorID  string `json:"correlation_id"`
+	UserId string `json:"user_id"`
 }
 
 // Переменная для парсинга переменных окружения. Они в приоритете.
