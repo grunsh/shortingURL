@@ -261,16 +261,24 @@ func shortingJSONbatch(res http.ResponseWriter, req *http.Request) {
 
 // Выаод всех URLов пользователя 14
 func userURLS(res http.ResponseWriter, req *http.Request) {
+	userID, _ := req.Context().Value(UserID).(string)
+	if userID == "" {
+		res.WriteHeader(http.StatusUnauthorized)
+		return // Выход по 400
+	}
 	type URLResp struct { // Тип для ответа с тегом result
 		ShortURL    string `json:"short_url"`
 		OriginalURL string `json:"original_url"`
 	}
 	var respURL []URLResp
-	userID, _ := req.Context().Value(UserID).(string)
 	res.Header().Set("Content-Type", "application/json") // Установим тип ответа application/json
 	tempU := URLstorage.GetUserURLs(userID)
 	for _, u := range tempU {
 		respURL = append(respURL, URLResp{ShortURL: config.PRM.ShortBaseURL + u.HASH, OriginalURL: u.URL})
+	}
+	if len(respURL) < 1 {
+		res.WriteHeader(http.StatusNoContent)
+		return
 	}
 	resp, err := json.Marshal(respURL)
 	if err != nil {
@@ -329,7 +337,9 @@ func serveCookie(h http.Handler) http.Handler {
 			h.ServeHTTP(w, r.WithContext(ctx))
 			return
 		}
-		h.ServeHTTP(w, r)
+		ShrtUserID = ""                                           // Проблемы были с тем чтобы идентифицировать пацана, пустого отдадим
+		ctx := context.WithValue(r.Context(), UserID, ShrtUserID) // Заложим в контекст идентификатор пользака
+		h.ServeHTTP(w, r.WithContext(ctx))
 	}
 	return http.HandlerFunc(serveCook)
 }
@@ -401,7 +411,7 @@ func main() {
 	r.Post("/api/shorten", shortingJSON)
 	r.Post("/api/shorten/batch", shortingJSONbatch)
 	r.Get("/ping", ping)
-	r.Get("/api/user/url", userURLS)
+	r.Get("/api/user/urls", userURLS)
 	err = http.ListenAndServe(config.PRM.ServerAddress, r)
 	if err != nil {
 		// вызываем панику, если ошибка

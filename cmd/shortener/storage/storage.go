@@ -288,10 +288,10 @@ func (f *DataBase) GetUserURLs(UserID string) []config.RecordURL {
 		url  string
 	)
 	rows, err := DB.Query("SELECT hash,url FROM shorturl.url WHERE shrt_uuid=$1", UserID)
-	defer rows.Close()
 	if err != nil {
 		panic("Ой. Не получилось запросить урлы пользака")
 	}
+	defer rows.Close()
 	for rows.Next() {
 		err := rows.Scan(&hash, &url)
 		if err != nil {
