@@ -292,7 +292,7 @@ func serveCookie(h http.Handler) http.Handler {
 		if er == nil { // ошибок с кукнёй нет
 			if rc.Name == "nested" { // нашлась кука, которая нам нужна
 				decoded, _ := hex.DecodeString(rc.Value)                  // Забивая на ошибку раскодируем из хекса, чтоб нам не дропали всякие символы
-				ShrtUserID = string(crypto.DecryptUid(decoded))           // Расшифровываем uid и строчим его
+				ShrtUserID = string(crypto.DecryptUID(decoded))           // Расшифровываем uid и строчим его
 				ctx := context.WithValue(r.Context(), UserID, ShrtUserID) // Заложим в контекст идентификатор пользака
 				h.ServeHTTP(w, r.WithContext(ctx))
 				return
@@ -300,7 +300,7 @@ func serveCookie(h http.Handler) http.Handler {
 		} else if er.Error() == "http: named cookie not present" { // с куками всё норм, но нет того, что нам надо, засадим
 			uid := uuid.New().String() // Генерим строковый uid
 			ShrtUserID = uid
-			crypted := hex.EncodeToString(crypto.EncryptUid([]byte(uid))) // Байтим, шифруем, кодируем в хекс, чтобы не сломалось в куковой кухне
+			crypted := hex.EncodeToString(crypto.EncryptUID([]byte(uid))) // Байтим, шифруем, кодируем в хекс, чтобы не сломалось в куковой кухне
 			c := http.Cookie{Name: "nested", Value: crypted}              // Впердоливаем
 			http.SetCookie(w, &c)
 			ctx := context.WithValue(r.Context(), UserID, ShrtUserID) // Заложим в контекст идентификатор пользака
@@ -346,9 +346,9 @@ func main() {
 
 	//rt := "Привет!"
 	//fmt.Println(rt)
-	//rtc := crypto.EncryptUid([]byte(rt))
+	//rtc := crypto.EncryptUID([]byte(rt))
 	//fmt.Println(string(rtc))
-	//fmt.Println(string(crypto.DecryptUid(rtc)))
+	//fmt.Println(string(crypto.DecryptUID(rtc)))
 
 	config.PRM = config.GetParams()              // Для начала получаем все параметры
 	URLstorage = storage.InitStorage(config.PRM) // В инит входит логика выбора хранилища + создание таблиц в БД, если БД.

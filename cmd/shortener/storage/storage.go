@@ -15,7 +15,7 @@ import (
 
 var err error
 
-var ShrtUserId string
+var ShrtUserID string
 
 type URLdbtyoe map[string]config.RecordURL
 
@@ -26,8 +26,8 @@ type InMemURL struct {
 
 type Storer interface {
 	Open()
-	StoreURL(url []byte, userId string) ([]byte, error)
-	StoreURLbatch(urls []config.RecordURL, userId string) []config.RecordURL
+	StoreURL(url []byte, UserID string) ([]byte, error)
+	StoreURLbatch(urls []config.RecordURL, UserID string) []config.RecordURL
 	GetURL(hash string) config.RecordURL
 	Close()
 }
@@ -36,19 +36,19 @@ func (f *InMemURL) GetURL(hash string) config.RecordURL {
 	return URLdb[hash]
 }
 
-func (f *InMemURL) StoreURL(url []byte, userId string) ([]byte, error) {
+func (f *InMemURL) StoreURL(url []byte, UserID string) ([]byte, error) {
 	hash := fun.GetHash()
 	u := config.RecordURL{
 		ID:     fun.NextSequenceID(),
 		HASH:   hash,
 		URL:    string(url),
-		UserId: userId,
+		UserId: UserID,
 	}
 	URLdb[hash] = u
 	return []byte(config.PRM.ShortBaseURL + hash), nil
 }
 
-func (f *InMemURL) StoreURLbatch(urls []config.RecordURL, userId string) []config.RecordURL {
+func (f *InMemURL) StoreURLbatch(urls []config.RecordURL, UserID string) []config.RecordURL {
 	var uResp []config.RecordURL
 	for _, u := range urls {
 		hash := fun.GetHash()
@@ -57,7 +57,7 @@ func (f *InMemURL) StoreURLbatch(urls []config.RecordURL, userId string) []confi
 			HASH:   hash,
 			URL:    u.URL,
 			CorID:  u.CorID,
-			UserId: userId,
+			UserId: UserID,
 		}
 		URLdb[hash] = u
 		uResp = append(uResp, u)
@@ -114,20 +114,20 @@ func (f *FileStorageURL) GetURL(hash string) config.RecordURL {
 	return URLdb[hash]
 }
 
-func (f *FileStorageURL) StoreURL(url []byte, userId string) ([]byte, error) {
+func (f *FileStorageURL) StoreURL(url []byte, UserID string) ([]byte, error) {
 	hash := fun.GetHash()
 	u := config.RecordURL{
 		ID:     fun.NextSequenceID(),
 		HASH:   hash,
 		URL:    string(url),
-		UserId: userId,
+		UserId: UserID,
 	}
 	URLdb[hash] = u
 	Prod.WriteURL(u)
 	return []byte(config.PRM.ShortBaseURL + hash), nil
 }
 
-func (f *FileStorageURL) StoreURLbatch(urls []config.RecordURL, userId string) []config.RecordURL {
+func (f *FileStorageURL) StoreURLbatch(urls []config.RecordURL, UserID string) []config.RecordURL {
 	var uResp []config.RecordURL
 	for _, u := range urls {
 		hash := fun.GetHash()
@@ -136,7 +136,7 @@ func (f *FileStorageURL) StoreURLbatch(urls []config.RecordURL, userId string) [
 			HASH:   hash,
 			URL:    u.URL,
 			CorID:  u.CorID,
-			UserId: userId,
+			UserId: UserID,
 		}
 		Prod.WriteURL(u)
 		uResp = append(uResp, u)
@@ -260,11 +260,11 @@ func (f *DataBase) GetURL(hash string) config.RecordURL {
 	}
 }
 
-func (f *DataBase) StoreURL(url []byte, userId string) ([]byte, error) {
-	return StoreURLinDataBase(url, userId)
+func (f *DataBase) StoreURL(url []byte, UserID string) ([]byte, error) {
+	return StoreURLinDataBase(url, UserID)
 }
 
-func StoreURLinDataBase(url []byte, userId string) ([]byte, error) {
+func StoreURLinDataBase(url []byte, UserID string) ([]byte, error) {
 	var (
 		hashDB string
 		urlDB  string
@@ -275,7 +275,7 @@ func StoreURLinDataBase(url []byte, userId string) ([]byte, error) {
 		HASH:   hash,
 		URL:    string(url),
 		CorID:  "",
-		UserId: userId,
+		UserId: UserID,
 	}
 	tx, err := DB.Begin()
 	defer tx.Commit()
@@ -305,7 +305,7 @@ func StoreURLinDataBase(url []byte, userId string) ([]byte, error) {
 	return []byte(config.PRM.ShortBaseURL + hash), nil
 }
 
-func (f *DataBase) StoreURLbatch(urls []config.RecordURL, userId string) []config.RecordURL {
+func (f *DataBase) StoreURLbatch(urls []config.RecordURL, UserID string) []config.RecordURL {
 	uResp := make([]config.RecordURL, len(urls))
 	tx, err := DB.Begin()
 	if err != nil {
@@ -318,7 +318,7 @@ func (f *DataBase) StoreURLbatch(urls []config.RecordURL, userId string) []confi
 			HASH:   hash,
 			URL:    u.URL,
 			CorID:  u.CorID,
-			UserId: userId,
+			UserId: UserID,
 		}
 		_, err := tx.Exec("insert into shorturl.url (hash,url,correlation_id,shrt_uuid) values ($1,$2,$3,$4)", ur.HASH, ur.URL, ur.CorID, ur.UserId)
 		if err != nil {

@@ -9,7 +9,7 @@ import (
 var Secretkey = []byte("secretkeyfromme1") //ключик
 var Nonce = []byte("123456123456")         //вектор инициализации
 
-func EncryptUid(s []byte) []byte {
+func EncryptUID(s []byte) []byte {
 	aesblock, err := aes.NewCipher(Secretkey)
 	if err != nil {
 		fmt.Printf("error: %v\n", err)
@@ -24,7 +24,7 @@ func EncryptUid(s []byte) []byte {
 	return dst
 }
 
-func DecryptUid(s []byte) []byte {
+func DecryptUID(s []byte) []byte {
 	aesblock, err := aes.NewCipher(Secretkey)
 	if err != nil {
 		fmt.Printf("error: %v\n", err)
