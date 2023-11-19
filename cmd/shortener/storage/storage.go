@@ -42,7 +42,7 @@ func (f *InMemURL) StoreURL(url []byte, UserID string) ([]byte, error) {
 		ID:     fun.NextSequenceID(),
 		HASH:   hash,
 		URL:    string(url),
-		UserId: UserID,
+		UserID: UserID,
 	}
 	URLdb[hash] = u
 	return []byte(config.PRM.ShortBaseURL + hash), nil
@@ -57,7 +57,7 @@ func (f *InMemURL) StoreURLbatch(urls []config.RecordURL, UserID string) []confi
 			HASH:   hash,
 			URL:    u.URL,
 			CorID:  u.CorID,
-			UserId: UserID,
+			UserID: UserID,
 		}
 		URLdb[hash] = u
 		uResp = append(uResp, u)
@@ -120,7 +120,7 @@ func (f *FileStorageURL) StoreURL(url []byte, UserID string) ([]byte, error) {
 		ID:     fun.NextSequenceID(),
 		HASH:   hash,
 		URL:    string(url),
-		UserId: UserID,
+		UserID: UserID,
 	}
 	URLdb[hash] = u
 	Prod.WriteURL(u)
@@ -136,7 +136,7 @@ func (f *FileStorageURL) StoreURLbatch(urls []config.RecordURL, UserID string) [
 			HASH:   hash,
 			URL:    u.URL,
 			CorID:  u.CorID,
-			UserId: UserID,
+			UserID: UserID,
 		}
 		Prod.WriteURL(u)
 		uResp = append(uResp, u)
@@ -275,14 +275,14 @@ func StoreURLinDataBase(url []byte, UserID string) ([]byte, error) {
 		HASH:   hash,
 		URL:    string(url),
 		CorID:  "",
-		UserId: UserID,
+		UserID: UserID,
 	}
 	tx, err := DB.Begin()
 	defer tx.Commit()
 	if err != nil {
 		panic("Ой. Не получилось начать транзакцию.")
 	}
-	result, err := tx.Exec("insert into shorturl.url (hash,url,correlation_id,shrt_uuid) values ($1,$2,$3,$4) on conflict (url) do nothing", u.HASH, u.URL, u.CorID, u.UserId)
+	result, err := tx.Exec("insert into shorturl.url (hash,url,correlation_id,shrt_uuid) values ($1,$2,$3,$4) on conflict (url) do nothing", u.HASH, u.URL, u.CorID, u.UserID)
 	if err != nil {
 		log.Fatal(err)
 		fmt.Println(err)
@@ -296,7 +296,7 @@ func StoreURLinDataBase(url []byte, UserID string) ([]byte, error) {
 		tx.QueryRow("SELECT u.hash, u.url FROM shorturl.url u WHERE u.url = $1", string(url)).Scan(&hashDB, &urlDB)
 		er := NewSQLError(errors.New("ErErEr"), "Already shortened URL: "+urlDB, Conflict)
 		fmt.Println(er)
-		fmt.Println("Не добавилось ничего: ", "insert into shorturl.url (hash,url,correlation_id,shrt_uuid) values ($1,$2,$3,$4)", u.HASH, u.URL, u.CorID, u.UserId)
+		fmt.Println("Не добавилось ничего: ", "insert into shorturl.url (hash,url,correlation_id,shrt_uuid) values ($1,$2,$3,$4)", u.HASH, u.URL, u.CorID, u.UserID)
 		return []byte(config.PRM.ShortBaseURL + hashDB), er
 	}
 	if u.ID == 0 { // Чисто чтоб вет тест перестал докапываться
@@ -318,9 +318,9 @@ func (f *DataBase) StoreURLbatch(urls []config.RecordURL, UserID string) []confi
 			HASH:   hash,
 			URL:    u.URL,
 			CorID:  u.CorID,
-			UserId: UserID,
+			UserID: UserID,
 		}
-		_, err := tx.Exec("insert into shorturl.url (hash,url,correlation_id,shrt_uuid) values ($1,$2,$3,$4)", ur.HASH, ur.URL, ur.CorID, ur.UserId)
+		_, err := tx.Exec("insert into shorturl.url (hash,url,correlation_id,shrt_uuid) values ($1,$2,$3,$4)", ur.HASH, ur.URL, ur.CorID, ur.UserID)
 		if err != nil {
 			tx.Rollback()
 			return []config.RecordURL{}
