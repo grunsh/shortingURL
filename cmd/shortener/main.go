@@ -39,7 +39,7 @@ var (
 	err            error
 	db             *sql.DB
 	URLstorage     storage.Storer
-	ShrtUserId     string
+	ShrtUserID     string
 )
 
 // Замес для передачи пользака из мидлвари в хендлер.
@@ -47,7 +47,7 @@ var (
 type ctxKey string
 
 const (
-	UserId ctxKey = "ShrtUserId"
+	UserID ctxKey = "ShrtUserId"
 )
 
 type (
@@ -160,7 +160,7 @@ func shortingGetURL(res http.ResponseWriter, req *http.Request) {
 
 // Хендлер для сокращения URL. На входе принимается URL как text/plain
 func shortingRequest(res http.ResponseWriter, req *http.Request) {
-	userID, _ := req.Context().Value(UserId).(string)
+	userID, _ := req.Context().Value(UserID).(string)
 	fmt.Println(userID)
 	data, err := io.ReadAll(req.Body)
 	req.Body.Close()
@@ -182,7 +182,7 @@ func shortingRequest(res http.ResponseWriter, req *http.Request) {
 
 // JSON хендлер для сокращения URL. На входе принимается URL как JSON
 func shortingJSON(res http.ResponseWriter, req *http.Request) {
-	userID, _ := req.Context().Value(UserId).(string)
+	userID, _ := req.Context().Value(UserID).(string)
 	type URLReq struct { // Тип для запроса с тегом url
 		URL string `json:"url"`
 	}
@@ -233,7 +233,7 @@ func shortingJSONbatch(res http.ResponseWriter, req *http.Request) {
 	var respURL []URLResp
 	var reqURL []config.RecordURL
 	var buf bytes.Buffer
-	userID, _ := req.Context().Value(UserId).(string)
+	userID, _ := req.Context().Value(UserID).(string)
 	_, err := buf.ReadFrom(req.Body)                     // Чтение тела запроса в буфер buf
 	res.Header().Set("Content-Type", "application/json") // Установим тип ответа application/json
 	if err != nil {                                      // Если не удалось прочитать запрос, то выходить надо по 400
@@ -292,18 +292,18 @@ func serveCookie(h http.Handler) http.Handler {
 		if er == nil { // ошибок с кукнёй нет
 			if rc.Name == "nested" { // нашлась кука, которая нам нужна
 				decoded, _ := hex.DecodeString(rc.Value)                  // Забивая на ошибку раскодируем из хекса, чтоб нам не дропали всякие символы
-				ShrtUserId = string(crypto.DecryptUid(decoded))           // Расшифровываем uid и строчим его
-				ctx := context.WithValue(r.Context(), UserId, ShrtUserId) // Заложим в контекст идентификатор пользака
+				ShrtUserID = string(crypto.DecryptUid(decoded))           // Расшифровываем uid и строчим его
+				ctx := context.WithValue(r.Context(), UserID, ShrtUserID) // Заложим в контекст идентификатор пользака
 				h.ServeHTTP(w, r.WithContext(ctx))
 				return
 			}
 		} else if er.Error() == "http: named cookie not present" { // с куками всё норм, но нет того, что нам надо, засадим
 			uid := uuid.New().String() // Генерим строковый uid
-			ShrtUserId = uid
+			ShrtUserID = uid
 			crypted := hex.EncodeToString(crypto.EncryptUid([]byte(uid))) // Байтим, шифруем, кодируем в хекс, чтобы не сломалось в куковой кухне
 			c := http.Cookie{Name: "nested", Value: crypted}              // Впердоливаем
 			http.SetCookie(w, &c)
-			ctx := context.WithValue(r.Context(), UserId, ShrtUserId) // Заложим в контекст идентификатор пользака
+			ctx := context.WithValue(r.Context(), UserID, ShrtUserID) // Заложим в контекст идентификатор пользака
 			h.ServeHTTP(w, r.WithContext(ctx))
 			return
 		}
