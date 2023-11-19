@@ -37,7 +37,7 @@ func DecryptUID(s []byte) []byte {
 	}
 	src, err := aesgcm.Open(nil, Nonce, s, nil) // расшифровываем
 	if err != nil {
-		fmt.Printf("error: %v\n", err, src, "-----", string(s))
+		fmt.Printf("error: %v\n", err)
 		return []byte{}
 	}
 	return src
