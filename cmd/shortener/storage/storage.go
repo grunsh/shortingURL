@@ -341,7 +341,7 @@ func OpenDataBase() {
 	DB, err = sql.Open("pgx", ps)
 	q := "CREATE SCHEMA IF NOT EXISTS shortURL"
 	DB.QueryRow(q)
-	q = "CREATE table IF NOT EXISTS  shortURL.URL (id bigserial primary key, hash varchar(10), url varchar(255), correlation_id varchar(255)), shrt_uuid char(36)"
+	q = "CREATE table IF NOT EXISTS  shortURL.URL (id bigserial primary key, hash varchar(10), url varchar(255), correlation_id varchar(255), shrt_uuid char(36))"
 	DB.QueryRow(q)
 	q = "CREATE UNIQUE INDEX url_url_idx ON shorturl.url (url)"
 	DB.QueryRow(q)
