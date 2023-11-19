@@ -259,6 +259,28 @@ func shortingJSONbatch(res http.ResponseWriter, req *http.Request) {
 	res.Write(resp)
 }
 
+// Выаод всех URLов пользователя 14
+func userURLS(res http.ResponseWriter, req *http.Request) {
+	type URLResp struct { // Тип для ответа с тегом result
+		ShortURL    string `json:"short_url"`
+		OriginalURL string `json:"original_url"`
+	}
+	var respURL []URLResp
+	userID, _ := req.Context().Value(UserID).(string)
+	res.Header().Set("Content-Type", "application/json") // Установим тип ответа application/json
+	tempU := URLstorage.GetUserURLs(userID)
+	for _, u := range tempU {
+		respURL = append(respURL, URLResp{ShortURL: config.PRM.ShortBaseURL + u.HASH, OriginalURL: u.URL})
+	}
+	resp, err := json.Marshal(respURL)
+	if err != nil {
+		res.WriteHeader(http.StatusBadRequest)
+		return // Выход по 400
+	}
+	res.WriteHeader(http.StatusOK)
+	res.Write(resp)
+}
+
 /*---------- Конец. Секция хендлеров ----------*/
 
 /*---------- Начало. Секция миддлаварей. ----------*/
@@ -379,6 +401,7 @@ func main() {
 	r.Post("/api/shorten", shortingJSON)
 	r.Post("/api/shorten/batch", shortingJSONbatch)
 	r.Get("/ping", ping)
+	r.Get("/api/user/url", userURLS)
 	err = http.ListenAndServe(config.PRM.ServerAddress, r)
 	if err != nil {
 		// вызываем панику, если ошибка

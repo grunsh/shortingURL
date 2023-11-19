@@ -29,11 +29,22 @@ type Storer interface {
 	StoreURL(url []byte, UserID string) ([]byte, error)
 	StoreURLbatch(urls []config.RecordURL, UserID string) []config.RecordURL
 	GetURL(hash string) config.RecordURL
+	GetUserURLs(UserID string) []config.RecordURL
 	Close()
 }
 
 func (f *InMemURL) GetURL(hash string) config.RecordURL {
 	return URLdb[hash]
+}
+
+func (f *InMemURL) GetUserURLs(UserID string) []config.RecordURL {
+	var tempURLs []config.RecordURL
+	for _, u := range URLdb {
+		if u.UserID == UserID {
+			tempURLs = append(tempURLs, u)
+		}
+	}
+	return tempURLs
 }
 
 func (f *InMemURL) StoreURL(url []byte, UserID string) ([]byte, error) {
@@ -112,6 +123,16 @@ func (f *FileStorageURL) Close() {
 
 func (f *FileStorageURL) GetURL(hash string) config.RecordURL {
 	return URLdb[hash]
+}
+
+func (f *FileStorageURL) GetUserURLs(UserID string) []config.RecordURL {
+	var tempURLs []config.RecordURL
+	for _, u := range URLdb {
+		if u.UserID == UserID {
+			tempURLs = append(tempURLs, u)
+		}
+	}
+	return tempURLs
 }
 
 func (f *FileStorageURL) StoreURL(url []byte, UserID string) ([]byte, error) {
@@ -258,6 +279,27 @@ func (f *DataBase) GetURL(hash string) config.RecordURL {
 	} else {
 		return config.RecordURL{ID: uuid, HASH: hash, URL: url}
 	}
+}
+
+func (f *DataBase) GetUserURLs(UserID string) []config.RecordURL {
+	var uResp []config.RecordURL
+	var (
+		hash string
+		url  string
+	)
+	rows, err := DB.Query("SELECT hash,url FROM shorturl.url WHERE shrt_uuid=$1", UserID)
+	defer rows.Close()
+	if err != nil {
+		panic("Ой. Не получилось запросить урлы пользака")
+	}
+	for rows.Next() {
+		err := rows.Scan(&hash, &url)
+		if err != nil {
+			panic(err)
+		}
+		uResp = append(uResp, config.RecordURL{ID: 0, HASH: hash, URL: url, CorID: "", UserID: UserID})
+	}
+	return uResp
 }
 
 func (f *DataBase) StoreURL(url []byte, UserID string) ([]byte, error) {
