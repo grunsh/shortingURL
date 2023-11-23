@@ -2,10 +2,12 @@ package storage
 
 import (
 	"bufio"
-	"database/sql"
+	"context"
 	"encoding/json"
 	"errors"
 	"fmt"
+	"github.com/jackc/pgx"
+	_ "github.com/jackc/pgx/v5/pgxpool"
 	"log"
 	"net/http"
 	"os"
@@ -24,10 +26,13 @@ var URLdb URLdbtyoe
 type InMemURL struct {
 }
 
+var DB *pgx.ConnPool
+
 type Storer interface {
 	Open()
 	StoreURL(url []byte, UserID string) ([]byte, error)
 	StoreURLbatch(urls []config.RecordURL, UserID string) []config.RecordURL
+	DeleteURLsBatch(hashes []string, UserID string)
 	GetURL(hash string) config.RecordURL
 	GetUserURLs(UserID string) []config.RecordURL
 	Close()
@@ -74,6 +79,10 @@ func (f *InMemURL) StoreURLbatch(urls []config.RecordURL, UserID string) []confi
 		uResp = append(uResp, u)
 	}
 	return uResp
+}
+
+func (f *InMemURL) DeleteURLsBatch(hashes []string, UserID string) {
+
 }
 
 // Метод инициализации хранилища. В данном случае, инициализируем мапу, а то ай-ай
@@ -165,6 +174,10 @@ func (f *FileStorageURL) StoreURLbatch(urls []config.RecordURL, UserID string) [
 	return uResp
 }
 
+func (f *FileStorageURL) DeleteURLsBatch(hashes []string, UserID string) {
+
+}
+
 type Producer struct {
 	file   *os.File
 	writer *bufio.Writer
@@ -240,7 +253,6 @@ func (c *Consumer) Close() error {
 /*---------- Конец. Секция работы с файлом. ----------*/
 
 /*-------------------- Начало. Секция работы с постгрёй. --------------------*/
-var DB *sql.DB
 
 type ErrorsSQL struct {
 	Err  error
@@ -303,10 +315,6 @@ func (f *DataBase) GetUserURLs(UserID string) []config.RecordURL {
 }
 
 func (f *DataBase) StoreURL(url []byte, UserID string) ([]byte, error) {
-	return StoreURLinDataBase(url, UserID)
-}
-
-func StoreURLinDataBase(url []byte, UserID string) ([]byte, error) {
 	var (
 		hashDB string
 		urlDB  string
@@ -329,11 +337,7 @@ func StoreURLinDataBase(url []byte, UserID string) ([]byte, error) {
 		log.Fatal(err)
 		fmt.Println(err)
 	}
-	resu, err := result.RowsAffected()
-	if err != nil {
-		log.Fatal(err)
-		fmt.Println(err.Error())
-	}
+	resu := result.RowsAffected()
 	if resu != 1 {
 		tx.QueryRow("SELECT u.hash, u.url FROM shorturl.url u WHERE u.url = $1", string(url)).Scan(&hashDB, &urlDB)
 		er := NewSQLError(errors.New("ErErEr"), "Already shortened URL: "+urlDB, Conflict)
@@ -373,21 +377,50 @@ func (f *DataBase) StoreURLbatch(urls []config.RecordURL, UserID string) []confi
 	return uResp
 }
 
-// Метод инициализации хранилища. В данном случае, оформим запросы для создания схемы и таблиц, если их нет
-func (f *DataBase) Open() {
-	OpenDataBase()
+func (f *DataBase) DeleteURLsBatch(hashes []string, UserID string) {
+	tx, err := DB.Begin()
+	if err != nil {
+		panic("Ой. Не получилось начать транзакцию в DeleteURLsBatch")
+	}
+	b := tx.BeginBatch()
+	for _, h := range hashes {
+		//		args := []interface{}{sql.Named("hash", h), sql.Named("userid", UserID)}
+		args := []interface{}{h, UserID}
+
+		b.Queue("update shorturl.url as u set deleted_flag = true where u.hash = $1 and u.shrt_uuid = $2", args, nil, nil)
+		fmt.Println(h, UserID)
+	}
+	err = b.Send(context.Background(), nil)
+	if err != nil {
+		fmt.Println("Отправка не сработала в батч делит", err)
+		tx.Rollback()
+	}
+	err = b.Close()
+	if err != nil {
+		fmt.Println("Закрывашка батча сломалась в батч делит", err)
+	}
+	err = tx.Commit()
+	if err != nil {
+		fmt.Println("Транзакция сломалась в батч делит", err)
+	}
 }
 
-func OpenDataBase() {
-	ps := config.PRM.DatabaseDSN
-	DB, err = sql.Open("pgx", ps)
+// Метод инициализации хранилища. В данном случае, оформим запросы для создания схемы и таблиц, если их нет
+
+func (f *DataBase) Open() {
+	var c pgx.ConnPoolConfig
+	c.Host = "localhost"
+	c.User = "shortener"
+	c.Password = "shortener"
+	c.Database = "shortener"
+	DB, err = pgx.NewConnPool(c)
+	//	DB, err = sql.Open("pgx", ps)
 	q := "CREATE SCHEMA IF NOT EXISTS shortURL"
-	DB.QueryRow(q)
-	q = "CREATE table IF NOT EXISTS  shortURL.URL (id bigserial primary key, hash varchar(10), url varchar(255), correlation_id varchar(255), shrt_uuid char(36))"
+	_ = DB.QueryRow(q)
+	q = "CREATE table IF NOT EXISTS shortURL.URL (id bigserial NOT NULL,hash varchar(10) NULL,url varchar(255) NULL,correlation_id varchar(255) NULL,shrt_uuid bpchar(36) NULL,deleted_flag bool NULL DEFAULT false, CONSTRAINT url_pkey PRIMARY KEY (id))"
 	DB.QueryRow(q)
 	q = "CREATE UNIQUE INDEX url_url_idx ON shorturl.url (url)"
 	DB.QueryRow(q)
-
 }
 
 // Метод закрытия хранилища. В случае с памятью, крыть нечего.

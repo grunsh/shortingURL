@@ -20,7 +20,6 @@ import (
 	"fmt"
 	"github.com/go-chi/chi/v5"
 	"github.com/google/uuid"
-	_ "github.com/jackc/pgx/v5/stdlib"
 	"go.uber.org/zap"
 	"io"
 	"net/http"
@@ -289,6 +288,35 @@ func userURLS(res http.ResponseWriter, req *http.Request) {
 	res.Write(resp)
 }
 
+func userURLSdelete(res http.ResponseWriter, req *http.Request) {
+	userID, _ := req.Context().Value(UserID).(string)
+	if userID == "" {
+		res.WriteHeader(http.StatusUnauthorized)
+		return // Выход по 400
+	}
+
+	type URLsToDelete []string // Тип для паринга массива хешей
+	var tempU URLsToDelete     // Переменная для размаршиливания джсона
+
+	res.Header().Set("Content-Type", "application/json") // Установим тип ответа application/json
+	var buf bytes.Buffer
+	_, err := buf.ReadFrom(req.Body) // Чтение тела запроса в буфер buf
+	if err != nil {
+		res.WriteHeader(http.StatusBadRequest)
+		return // Выход по 400 (ошибка чтения тела запроса)
+	}
+	if err = json.Unmarshal(buf.Bytes(), &tempU); err != nil {
+		res.WriteHeader(http.StatusBadRequest)
+		return // Выход по 400 (в запросе какашки, причём без орехов)
+	}
+
+	for _, u := range tempU {
+		fmt.Println(u)
+	}
+	URLstorage.DeleteURLsBatch(tempU, userID)
+	res.WriteHeader(http.StatusAccepted)
+}
+
 /*---------- Конец. Секция хендлеров ----------*/
 
 /*---------- Начало. Секция миддлаварей. ----------*/
@@ -412,6 +440,7 @@ func main() {
 	r.Post("/api/shorten/batch", shortingJSONbatch)
 	r.Get("/ping", ping)
 	r.Get("/api/user/urls", userURLS)
+	r.Delete("/api/user/urls", userURLSdelete)
 	err = http.ListenAndServe(config.PRM.ServerAddress, r)
 	if err != nil {
 		// вызываем панику, если ошибка
