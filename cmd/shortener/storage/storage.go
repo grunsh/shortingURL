@@ -7,6 +7,7 @@ import (
 	"errors"
 	"fmt"
 	"github.com/jackc/pgx"
+	"github.com/jackc/pgx/pgtype"
 	_ "github.com/jackc/pgx/v5/pgxpool"
 	"log"
 	"net/http"
@@ -55,10 +56,11 @@ func (f *InMemURL) GetUserURLs(UserID string) []config.RecordURL {
 func (f *InMemURL) StoreURL(url []byte, UserID string) ([]byte, error) {
 	hash := fun.GetHash()
 	u := config.RecordURL{
-		ID:     fun.NextSequenceID(),
-		HASH:   hash,
-		URL:    string(url),
-		UserID: UserID,
+		ID:      fun.NextSequenceID(),
+		HASH:    hash,
+		URL:     string(url),
+		UserID:  UserID,
+		Deleted: false,
 	}
 	URLdb[hash] = u
 	return []byte(config.PRM.ShortBaseURL + hash), nil
@@ -69,11 +71,12 @@ func (f *InMemURL) StoreURLbatch(urls []config.RecordURL, UserID string) []confi
 	for _, u := range urls {
 		hash := fun.GetHash()
 		u := config.RecordURL{
-			ID:     fun.NextSequenceID(),
-			HASH:   hash,
-			URL:    u.URL,
-			CorID:  u.CorID,
-			UserID: UserID,
+			ID:      fun.NextSequenceID(),
+			HASH:    hash,
+			URL:     u.URL,
+			CorID:   u.CorID,
+			UserID:  UserID,
+			Deleted: false,
 		}
 		URLdb[hash] = u
 		uResp = append(uResp, u)
@@ -147,10 +150,11 @@ func (f *FileStorageURL) GetUserURLs(UserID string) []config.RecordURL {
 func (f *FileStorageURL) StoreURL(url []byte, UserID string) ([]byte, error) {
 	hash := fun.GetHash()
 	u := config.RecordURL{
-		ID:     fun.NextSequenceID(),
-		HASH:   hash,
-		URL:    string(url),
-		UserID: UserID,
+		ID:      fun.NextSequenceID(),
+		HASH:    hash,
+		URL:     string(url),
+		UserID:  UserID,
+		Deleted: false,
 	}
 	URLdb[hash] = u
 	Prod.WriteURL(u)
@@ -162,11 +166,12 @@ func (f *FileStorageURL) StoreURLbatch(urls []config.RecordURL, UserID string) [
 	for _, u := range urls {
 		hash := fun.GetHash()
 		u := config.RecordURL{
-			ID:     fun.NextSequenceID(),
-			HASH:   hash,
-			URL:    u.URL,
-			CorID:  u.CorID,
-			UserID: UserID,
+			ID:      fun.NextSequenceID(),
+			HASH:    hash,
+			URL:     u.URL,
+			CorID:   u.CorID,
+			UserID:  UserID,
+			Deleted: false,
 		}
 		Prod.WriteURL(u)
 		uResp = append(uResp, u)
@@ -282,14 +287,15 @@ type DataBase struct {
 
 func (f *DataBase) GetURL(hash string) config.RecordURL {
 	var (
-		uuid uint
-		url  string
+		uuid    uint
+		url     string
+		deleted bool
 	)
-	DB.QueryRow("SELECT u.id, u.url FROM shorturl.url u WHERE u.hash = $1", hash).Scan(&uuid, &url)
+	DB.QueryRow("SELECT u.id, u.url,u.deleted_flag FROM shorturl.url u WHERE u.hash = $1", hash).Scan(&uuid, &url, &deleted)
 	if uuid == 0 {
 		return config.RecordURL{ID: 0, HASH: "", URL: "", CorID: ""}
 	} else {
-		return config.RecordURL{ID: uuid, HASH: hash, URL: url}
+		return config.RecordURL{ID: uuid, HASH: hash, URL: url, Deleted: deleted}
 	}
 }
 
@@ -321,18 +327,20 @@ func (f *DataBase) StoreURL(url []byte, UserID string) ([]byte, error) {
 	)
 	hash := fun.GetHash()
 	u := config.RecordURL{
-		ID:     0,
-		HASH:   hash,
-		URL:    string(url),
-		CorID:  "",
-		UserID: UserID,
+		ID:      0,
+		HASH:    hash,
+		URL:     string(url),
+		CorID:   "",
+		UserID:  UserID,
+		Deleted: false,
 	}
 	tx, err := DB.Begin()
 	defer tx.Commit()
 	if err != nil {
 		panic("Ой. Не получилось начать транзакцию.")
 	}
-	result, err := tx.Exec("insert into shorturl.url (hash,url,correlation_id,shrt_uuid) values ($1,$2,$3,$4) on conflict (url) do nothing", u.HASH, u.URL, u.CorID, u.UserID)
+	query := "insert into shorturl.url (hash,url,correlation_id,shrt_uuid,deleted_flag) values ($1,$2,$3,$4,$5) on conflict (url) do nothing"
+	result, err := tx.Exec(query, u.HASH, u.URL, u.CorID, u.UserID, u.Deleted)
 	if err != nil {
 		log.Fatal(err)
 		fmt.Println(err)
@@ -342,7 +350,7 @@ func (f *DataBase) StoreURL(url []byte, UserID string) ([]byte, error) {
 		tx.QueryRow("SELECT u.hash, u.url FROM shorturl.url u WHERE u.url = $1", string(url)).Scan(&hashDB, &urlDB)
 		er := NewSQLError(errors.New("ErErEr"), "Already shortened URL: "+urlDB, Conflict)
 		fmt.Println(er)
-		fmt.Println("Не добавилось ничего: ", "insert into shorturl.url (hash,url,correlation_id,shrt_uuid) values ($1,$2,$3,$4)", u.HASH, u.URL, u.CorID, u.UserID)
+		fmt.Println("Не добавилось ничего: ", query, u.HASH, u.URL, u.CorID, u.UserID, u.Deleted)
 		return []byte(config.PRM.ShortBaseURL + hashDB), er
 	}
 	if u.ID == 0 { // Чисто чтоб вет тест перестал докапываться
@@ -360,11 +368,12 @@ func (f *DataBase) StoreURLbatch(urls []config.RecordURL, UserID string) []confi
 	for i, u := range urls {
 		hash := fun.GetHash()
 		ur := config.RecordURL{
-			ID:     0,
-			HASH:   hash,
-			URL:    u.URL,
-			CorID:  u.CorID,
-			UserID: UserID,
+			ID:      0,
+			HASH:    hash,
+			URL:     u.URL,
+			CorID:   u.CorID,
+			UserID:  UserID,
+			Deleted: false,
 		}
 		_, err := tx.Exec("insert into shorturl.url (hash,url,correlation_id,shrt_uuid) values ($1,$2,$3,$4)", ur.HASH, ur.URL, ur.CorID, ur.UserID)
 		if err != nil {
@@ -385,9 +394,12 @@ func (f *DataBase) DeleteURLsBatch(hashes []string, UserID string) {
 	b := tx.BeginBatch()
 	for _, h := range hashes {
 		//		args := []interface{}{sql.Named("hash", h), sql.Named("userid", UserID)}
-		args := []interface{}{h, UserID}
-
-		b.Queue("update shorturl.url as u set deleted_flag = true where u.hash = $1 and u.shrt_uuid = $2", args, nil, nil)
+		args := []interface{}{
+			h,
+			UserID,
+		}
+		fmt.Println(args)
+		b.Queue("update shorturl.url as u set deleted_flag = true where u.hash = $1 and u.shrt_uuid = $2", args, []pgtype.OID{pgtype.VarcharOID, pgtype.VarcharOID}, nil)
 		fmt.Println(h, UserID)
 	}
 	err = b.Send(context.Background(), nil)
