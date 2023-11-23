@@ -392,8 +392,11 @@ func (f *DataBase) DeleteURLsBatch(hashes []string, UserID string) {
 		panic("Ой. Не получилось начать транзакцию в DeleteURLsBatch")
 	}
 	b := tx.BeginBatch()
-	for _, h := range hashes {
-		//		args := []interface{}{sql.Named("hash", h), sql.Named("userid", UserID)}
+	hashCh := make(chan string)
+	for i, h := range hashes {
+		go func() {
+
+		}()
 		args := []interface{}{
 			h,
 			UserID,
