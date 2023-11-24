@@ -8,7 +8,6 @@ import (
 	"fmt"
 	"github.com/jackc/pgx"
 	"github.com/jackc/pgx/pgtype"
-	_ "github.com/jackc/pgx/v5/pgxpool"
 	"log"
 	"net/http"
 	"os"
