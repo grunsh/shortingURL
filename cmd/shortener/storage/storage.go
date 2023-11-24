@@ -472,7 +472,9 @@ func (f *DataBase) DeleteURLsBatch(hashes []string, UserID string) {
 
 func (f *DataBase) Open() {
 	var c pgx.ConnPoolConfig
+	fmt.Println("DSN: ", config.PRM.DatabaseDSN)
 	tempC, _ := pgx.ParseDSN(config.PRM.DatabaseDSN)
+	fmt.Println("Распарсенный конфиг БД: ", tempC)
 	c.Host = tempC.Host
 	c.Database = tempC.Database
 	c.User = tempC.User
