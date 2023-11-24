@@ -14,6 +14,7 @@ import (
 	"os"
 	"shortingURL/cmd/shortener/config"
 	fun "shortingURL/cmd/shortener/f"
+	"strconv"
 )
 
 var err error
@@ -340,7 +341,7 @@ func (f *DataBase) StoreURL(url []byte, UserID string) ([]byte, error) {
 		panic("Ой. Не получилось начать транзакцию.")
 	}
 	query := "insert into shorturl.url (hash,url,correlation_id,shrt_uuid,deleted_flag) values ($1,$2,$3,$4,$5) on conflict (url) do nothing"
-	result, err := tx.Exec(query, u.HASH, u.URL, u.CorID, u.UserID, u.Deleted)
+	result, err := tx.Exec(query, u.HASH, u.URL, u.CorID, u.UserID, strconv.FormatBool(u.Deleted))
 	if err != nil {
 		log.Fatal(err)
 		fmt.Println(err)
@@ -387,24 +388,46 @@ func (f *DataBase) StoreURLbatch(urls []config.RecordURL, UserID string) []confi
 }
 
 func (f *DataBase) DeleteURLsBatch(hashes []string, UserID string) {
+	type UserHash struct {
+		UserID string
+		Hash   string
+	}
+	//	var wg sync.WaitGroup
+
 	tx, err := DB.Begin()
 	if err != nil {
 		panic("Ой. Не получилось начать транзакцию в DeleteURLsBatch")
 	}
 	b := tx.BeginBatch()
-	hashCh := make(chan string)
-	for i, h := range hashes {
-		go func() {
-
-		}()
-		args := []interface{}{
-			h,
-			UserID,
-		}
-		fmt.Println(args)
-		b.Queue("update shorturl.url as u set deleted_flag = true where u.hash = $1 and u.shrt_uuid = $2", args, []pgtype.OID{pgtype.VarcharOID, pgtype.VarcharOID}, nil)
-		fmt.Println(h, UserID)
+	hashCh := make(chan UserHash)
+	for i := 0; i < 2; i++ { // Запускаем мурашей копошиться
+		//		wg.Add(1)
+		fmt.Println("Gorutine start ", i)
+		go func(b *pgx.Batch, ind int) {
+			for {
+				tempVar, ok := <-hashCh
+				if !ok {
+					//					wg.Done()
+					fmt.Println("Вышли из горутины", ind)
+					return
+				}
+				args := []interface{}{
+					tempVar.Hash,
+					tempVar.UserID,
+				}
+				fmt.Println("Нагорутинили аргументы: ", args)
+				b.Queue("update shorturl.url as u set deleted_flag = true where u.hash = $1 and u.shrt_uuid = $2", args, []pgtype.OID{pgtype.VarcharOID, pgtype.VarcharOID}, nil)
+			}
+			fmt.Println("Вышли из горутины", ind)
+		}(b, i)
 	}
+	for _, h := range hashes {
+		hashCh <- UserHash{UserID: UserID, Hash: h}
+		fmt.Println("Набиваем канал: ", UserID, h)
+	}
+	close(hashCh)
+	//	wg.Wait()
+
 	err = b.Send(context.Background(), nil)
 	if err != nil {
 		fmt.Println("Отправка не сработала в батч делит", err)
