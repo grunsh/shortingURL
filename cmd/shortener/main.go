@@ -399,13 +399,6 @@ func compressExchange(next http.Handler) http.Handler {
 /*---------- Конец. Секция миддлаварей. ----------*/
 
 func main() {
-
-	//rt := "Привет!"
-	//fmt.Println(rt)
-	//rtc := crypto.EncryptUID([]byte(rt))
-	//fmt.Println(string(rtc))
-	//fmt.Println(string(crypto.DecryptUID(rtc)))
-
 	config.PRM = config.GetParams()              // Для начала получаем все параметры
 	URLstorage = storage.InitStorage(config.PRM) // В инит входит логика выбора хранилища + создание таблиц в БД, если БД.
 	URLstorage.Open()
