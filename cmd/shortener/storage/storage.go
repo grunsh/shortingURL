@@ -476,9 +476,13 @@ func (f *DataBase) Open() {
 	tempC, _ := pgx.ParseDSN(config.PRM.DatabaseDSN)
 	fmt.Println("Распарсенный конфиг БД: ", tempC)
 	c.Host = tempC.Host
+	fmt.Println(c.Host)
 	c.Database = tempC.Database
+	fmt.Println(c.Database)
 	c.User = tempC.User
+	fmt.Println(c.User)
 	c.Password = tempC.Password
+	fmt.Println(c.Password)
 	DB, err = pgx.NewConnPool(c)
 	//	DB, err = sql.Open("pgx", ps)
 	q := "CREATE SCHEMA IF NOT EXISTS shortURL"
