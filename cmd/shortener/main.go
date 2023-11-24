@@ -20,7 +20,6 @@ import (
 	"fmt"
 	"github.com/go-chi/chi/v5"
 	"github.com/google/uuid"
-	_ "github.com/jackc/pgx"
 	"go.uber.org/zap"
 	"io"
 	"net/http"

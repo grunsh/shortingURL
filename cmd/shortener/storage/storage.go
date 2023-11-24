@@ -3,11 +3,11 @@ package storage
 import (
 	"bufio"
 	"context"
+	"database/sql"
 	"encoding/json"
 	"errors"
 	"fmt"
-	"github.com/jackc/pgx"
-	"github.com/jackc/pgx/pgtype"
+	_ "github.com/jackc/pgx/v5/stdlib"
 	"log"
 	"net/http"
 	"os"
@@ -27,7 +27,9 @@ var URLdb URLdbtyoe
 type InMemURL struct {
 }
 
-var DB *pgx.ConnPool
+//var DB *pgx.ConnPool
+
+var DB *sql.DB
 
 type Storer interface {
 	Open()
@@ -371,7 +373,7 @@ func (f *DataBase) StoreURL(url []byte, UserID string) ([]byte, error) {
 		log.Fatal(err)
 		fmt.Println(err)
 	}
-	resu := result.RowsAffected()
+	resu, _ := result.RowsAffected()
 	if resu != 1 {
 		tx.QueryRow("SELECT u.hash, u.url FROM shorturl.url u WHERE u.url = $1", string(url)).Scan(&hashDB, &urlDB)
 		er := NewSQLError(errors.New("ErErEr"), "Already shortened URL: "+urlDB, Conflict)
@@ -423,12 +425,11 @@ func (f *DataBase) DeleteURLsBatch(hashes []string, UserID string) {
 	if err != nil {
 		panic("Ой. Не получилось начать транзакцию в DeleteURLsBatch")
 	}
-	b := tx.BeginBatch()
 	hashCh := make(chan UserHash)
 	for i := 0; i < 2; i++ { // Запускаем мурашей копошиться
 		//		wg.Add(1)
 		fmt.Println("Gorutine start ", i)
-		go func(b *pgx.Batch, ind int) {
+		go func(ind int) {
 			for {
 				tempVar, ok := <-hashCh
 				if !ok {
@@ -441,9 +442,10 @@ func (f *DataBase) DeleteURLsBatch(hashes []string, UserID string) {
 					tempVar.UserID,
 				}
 				fmt.Println("Нагорутинили аргументы: ", args)
-				b.Queue("update shorturl.url as u set deleted_flag = true where u.hash = $1 and u.shrt_uuid = $2", args, []pgtype.OID{pgtype.VarcharOID, pgtype.VarcharOID}, nil)
+				tx.Exec("update shorturl.url as u set deleted_flag = true where u.hash = $1 and u.shrt_uuid = $2", tempVar.Hash, tempVar.UserID)
+				//b.Queue("update shorturl.url as u set deleted_flag = true where u.hash = $1 and u.shrt_uuid = $2", args, []pgtype.OID{pgtype.VarcharOID, pgtype.VarcharOID}, nil)
 			}
-		}(b, i)
+		}(i)
 	}
 	for _, h := range hashes {
 		hashCh <- UserHash{UserID: UserID, Hash: h}
@@ -452,16 +454,16 @@ func (f *DataBase) DeleteURLsBatch(hashes []string, UserID string) {
 	close(hashCh)
 	//	wg.Wait()
 
-	err = b.Send(context.Background(), nil)
-	if err != nil {
-		fmt.Println("Отправка не сработала в батч делит", err)
-		tx.Rollback()
-	}
-	err = b.Close()
-	if err != nil {
-		fmt.Println("Закрывашка батча сломалась в батч делит", err)
-	}
-	err = tx.Commit()
+	//err = b.Send(context.Background(), nil)
+	//if err != nil {
+	//	fmt.Println("Отправка не сработала в батч делит", err)
+	//	tx.Rollback()
+	//}
+	//err = b.Close()
+	//if err != nil {
+	//	fmt.Println("Закрывашка батча сломалась в батч делит", err)
+	//}
+	//err = tx.Commit()
 	if err != nil {
 		fmt.Println("Транзакция сломалась в батч делит", err)
 	}
@@ -470,20 +472,21 @@ func (f *DataBase) DeleteURLsBatch(hashes []string, UserID string) {
 // Метод инициализации хранилища. В данном случае, оформим запросы для создания схемы и таблиц, если их нет
 
 func (f *DataBase) Open() {
-	var c pgx.ConnPoolConfig
-	fmt.Println("DSN: ", config.PRM.DatabaseDSN)
-	tempC, _ := pgx.ParseDSN(config.PRM.DatabaseDSN)
-	fmt.Println("Распарсенный конфиг БД: ", tempC)
-	c.Host = tempC.Host
-	fmt.Println(c.Host)
-	c.Database = tempC.Database
-	fmt.Println(c.Database)
-	c.User = tempC.User
-	fmt.Println(c.User)
-	c.Password = tempC.Password
-	fmt.Println(c.Password)
-	DB, err = pgx.NewConnPool(c)
-	//	DB, err = sql.Open("pgx", ps)
+	//var c pgx.ConnPoolConfig
+	//fmt.Println("DSN: ", config.PRM.DatabaseDSN)
+	//tempC, _ := pgx.ParseDSN(config.PRM.DatabaseDSN)
+	//fmt.Println("Распарсенный конфиг БД: ", tempC)
+	//c.Host = tempC.Host
+	//fmt.Println(c.Host)
+	//c.Database = tempC.Database
+	//fmt.Println(c.Database)
+	//c.User = tempC.User
+	//fmt.Println(c.User)
+	//c.Password = tempC.Password
+	//fmt.Println(c.Password)
+	//DB, err = pgx.NewConnPool(c)
+	ps := config.PRM.DatabaseDSN
+	DB, _ = sql.Open("pgx", ps)
 	q := "CREATE SCHEMA IF NOT EXISTS shortURL"
 	_ = DB.QueryRow(q)
 	q = "CREATE table IF NOT EXISTS shortURL.URL (id bigserial NOT NULL,hash varchar(10) NULL,url varchar(255) NULL,correlation_id varchar(255) NULL,shrt_uuid bpchar(36) NULL,deleted_flag bool NULL DEFAULT false, CONSTRAINT url_pkey PRIMARY KEY (id))"
