@@ -361,11 +361,12 @@ func (f *DataBase) StoreURL(url []byte, UserID string) ([]byte, error) {
 		Deleted: false,
 	}
 	tx, err := DB.Begin()
-	defer tx.Commit()
 	if err != nil {
 		panic("Ой. Не получилось начать транзакцию.")
 	}
+	defer tx.Commit()
 	query := "insert into shorturl.url (hash,url,correlation_id,shrt_uuid,deleted_flag) values ($1,$2,$3,$4,$5) on conflict (url) do nothing"
+	fmt.Println(query)
 	result, err := tx.Exec(query, u.HASH, u.URL, u.CorID, u.UserID, strconv.FormatBool(u.Deleted))
 	if err != nil {
 		log.Fatal(err)
@@ -443,7 +444,6 @@ func (f *DataBase) DeleteURLsBatch(hashes []string, UserID string) {
 				fmt.Println("Нагорутинили аргументы: ", args)
 				b.Queue("update shorturl.url as u set deleted_flag = true where u.hash = $1 and u.shrt_uuid = $2", args, []pgtype.OID{pgtype.VarcharOID, pgtype.VarcharOID}, nil)
 			}
-			fmt.Println("Вышли из горутины", ind)
 		}(b, i)
 	}
 	for _, h := range hashes {
