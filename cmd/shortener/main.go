@@ -462,7 +462,7 @@ func main() {
 
 	parameters = config.GetParams() // Для начала получаем все параметры
 	storeURL, getURL = NewStorageDrivers()
-
+	fmt.Println(parameters)
 	shortURLDomain = parameters.ShortBaseURL
 
 	// Раскручиваем маховик журналирования
