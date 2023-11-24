@@ -450,6 +450,7 @@ func (f *DataBase) DeleteURLsBatch(hashes []string, UserID string) {
 		fmt.Println("Набиваем канал: ", UserID, h)
 	}
 	close(hashCh)
+	fmt.Println("Закрытие тарнзакции удаления: ", tx.Commit())
 	//	wg.Wait()
 
 	//err = b.Send(context.Background(), nil)
