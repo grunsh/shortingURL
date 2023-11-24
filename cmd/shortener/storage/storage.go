@@ -472,10 +472,11 @@ func (f *DataBase) DeleteURLsBatch(hashes []string, UserID string) {
 
 func (f *DataBase) Open() {
 	var c pgx.ConnPoolConfig
-	c.Host = "localhost"
-	c.User = "shortener"
-	c.Password = "shortener"
-	c.Database = "shortener"
+	tempC, _ := pgx.ParseDSN(config.PRM.DatabaseDSN)
+	c.Host = tempC.Host
+	c.Database = tempC.Database
+	c.User = tempC.User
+	c.Password = tempC.Password
 	DB, err = pgx.NewConnPool(c)
 	//	DB, err = sql.Open("pgx", ps)
 	q := "CREATE SCHEMA IF NOT EXISTS shortURL"
