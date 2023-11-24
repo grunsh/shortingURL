@@ -338,13 +338,13 @@ func logHTTPInfo(h http.Handler) http.Handler {
 
 func serveCookie(h http.Handler) http.Handler {
 	serveCook := func(w http.ResponseWriter, r *http.Request) {
-		fmt.Println("-------")
+		//fmt.Println("-------")
 		rc, er := r.Cookie("nested")
 		if er == nil { // ошибок с кукнёй нет
 			if rc.Name == "nested" { // нашлась кука, которая нам нужна
 				decoded, _ := hex.DecodeString(rc.Value)        // Забивая на ошибку раскодируем из хекса, чтоб нам не дропали всякие символы
 				ShrtUserID = string(crypto.DecryptUID(decoded)) // Расшифровываем uid и строчим его
-				fmt.Println("Пользователь с уже кукой:", ShrtUserID)
+				//fmt.Println("Пользователь с уже кукой:", ShrtUserID)
 				ctx := context.WithValue(r.Context(), UserID, ShrtUserID) // Заложим в контекст идентификатор пользака
 				h.ServeHTTP(w, r.WithContext(ctx))
 				return
@@ -353,7 +353,7 @@ func serveCookie(h http.Handler) http.Handler {
 			uid := uuid.New().String() // Генерим строковый uid
 			ShrtUserID = uid
 			crypted := hex.EncodeToString(crypto.EncryptUID([]byte(uid))) // Байтим, шифруем, кодируем в хекс, чтобы не сломалось в куковой кухне
-			fmt.Println("Ошибок не было, но такой куки нет:", ShrtUserID, crypted)
+			//fmt.Println("Ошибок не было, но такой куки нет:", ShrtUserID, crypted)
 			c := http.Cookie{Name: "nested", Value: crypted}
 			http.SetCookie(w, &c)                                     // Впердоливаем
 			ctx := context.WithValue(r.Context(), UserID, ShrtUserID) // Заложим в контекст идентификатор пользака

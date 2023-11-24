@@ -367,7 +367,6 @@ func (f *DataBase) StoreURL(url []byte, UserID string) ([]byte, error) {
 	}
 	defer tx.Commit()
 	query := "insert into shorturl.url (hash,url,correlation_id,shrt_uuid,deleted_flag) values ($1,$2,$3,$4,$5) on conflict (url) do nothing"
-	fmt.Println(query)
 	result, err := tx.Exec(query, u.HASH, u.URL, u.CorID, u.UserID, strconv.FormatBool(u.Deleted))
 	if err != nil {
 		log.Fatal(err)
@@ -428,21 +427,20 @@ func (f *DataBase) DeleteURLsBatch(hashes []string, UserID string) {
 	hashCh := make(chan UserHash)
 	for i := 0; i < 2; i++ { // Запускаем мурашей копошиться
 		//		wg.Add(1)
-		fmt.Println("Gorutine start ", i)
 		go func(ind int) {
 			for {
 				tempVar, ok := <-hashCh
 				if !ok {
 					//					wg.Done()
-					fmt.Println("Вышли из горутины", ind)
 					return
 				}
-				args := []interface{}{
-					tempVar.Hash,
-					tempVar.UserID,
-				}
-				fmt.Println("Нагорутинили аргументы: ", args)
-				tx.Exec("update shorturl.url as u set deleted_flag = true where u.hash = $1 and u.shrt_uuid = $2", tempVar.Hash, tempVar.UserID)
+				//args := []interface{}{
+				//	tempVar.Hash,
+				//	tempVar.UserID,
+				//}
+				q := "update shorturl.url as u set deleted_flag = true where u.hash = $1 and u.shrt_uuid = $2"
+				tx.Exec(q, tempVar.Hash, tempVar.UserID)
+				fmt.Println("Запрос удаления: ", q, tempVar.Hash, tempVar.UserID)
 				//b.Queue("update shorturl.url as u set deleted_flag = true where u.hash = $1 and u.shrt_uuid = $2", args, []pgtype.OID{pgtype.VarcharOID, pgtype.VarcharOID}, nil)
 			}
 		}(i)
@@ -464,9 +462,9 @@ func (f *DataBase) DeleteURLsBatch(hashes []string, UserID string) {
 	//	fmt.Println("Закрывашка батча сломалась в батч делит", err)
 	//}
 	//err = tx.Commit()
-	if err != nil {
-		fmt.Println("Транзакция сломалась в батч делит", err)
-	}
+	//if err != nil {
+	//	fmt.Println("Транзакция сломалась в батч делит", err)
+	//}
 }
 
 // Метод инициализации хранилища. В данном случае, оформим запросы для создания схемы и таблиц, если их нет
