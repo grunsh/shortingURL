@@ -20,6 +20,7 @@ import (
 	"fmt"
 	"github.com/go-chi/chi/v5"
 	"github.com/google/uuid"
+	_ "github.com/jackc/pgx"
 	"go.uber.org/zap"
 	"io"
 	"net/http"
@@ -127,19 +128,7 @@ func ping(res http.ResponseWriter, req *http.Request) {
 	}
 	ctx, cancel := context.WithTimeout(req.Context(), 2*time.Second)
 	defer cancel()
-	ps := config.PRM.DatabaseDSN
-	db, err = sql.Open("pgx", ps)
-	if err != nil {
-		res.WriteHeader(http.StatusInternalServerError)
-		return
-	}
-	err = db.PingContext(ctx)
-	if err != nil {
-		res.WriteHeader(http.StatusInternalServerError)
-		return
-	}
-	res.WriteHeader(http.StatusOK)
-	db.Close()
+	res.WriteHeader(URLstorage.Ping(ctx))
 }
 
 // Хендлер получения сокращённого URL. 307 и редирект, или ошибка.

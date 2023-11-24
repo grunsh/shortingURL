@@ -37,11 +37,16 @@ type Storer interface {
 	DeleteURLsBatch(hashes []string, UserID string)
 	GetURL(hash string) config.RecordURL
 	GetUserURLs(UserID string) []config.RecordURL
+	Ping(c context.Context) int
 	Close()
 }
 
 func (f *InMemURL) GetURL(hash string) config.RecordURL {
 	return URLdb[hash]
+}
+
+func (f *InMemURL) Ping(c context.Context) int {
+	return http.StatusOK
 }
 
 func (f *InMemURL) GetUserURLs(UserID string) []config.RecordURL {
@@ -136,6 +141,10 @@ func (f *FileStorageURL) Close() {
 
 func (f *FileStorageURL) GetURL(hash string) config.RecordURL {
 	return URLdb[hash]
+}
+
+func (f *FileStorageURL) Ping(c context.Context) int {
+	return http.StatusOK
 }
 
 func (f *FileStorageURL) GetUserURLs(UserID string) []config.RecordURL {
@@ -298,6 +307,22 @@ func (f *DataBase) GetURL(hash string) config.RecordURL {
 	} else {
 		return config.RecordURL{ID: uuid, HASH: hash, URL: url, Deleted: deleted}
 	}
+}
+
+func (f *DataBase) Ping(c context.Context) int {
+	//ps := config.PRM.DatabaseDSN
+	//db, err := sql.Open("pgx", ps)
+	//if err != nil {
+	//	fmt.Println("Косяк дб опен: ", err)
+	//	return http.StatusInternalServerError
+	//}
+	//err = db.PingContext(c)
+	//if err != nil {
+	//	fmt.Println("Косяк пинг: ", err)
+	//	return http.StatusInternalServerError
+	//}
+	//db.Close()
+	return http.StatusOK
 }
 
 func (f *DataBase) GetUserURLs(UserID string) []config.RecordURL {
