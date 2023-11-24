@@ -417,7 +417,7 @@ func main() {
 		"Starting server",
 		"addr", config.PRM.ServerAddress,
 	)
-
+	fmt.Println(URLstorage)
 	// Роутер. Регистрируем миддлвари, хендлеры и запускаемся.
 	r := chi.NewRouter()
 	r.Use(compressExchange) // Встраиваем сжиматор-разжиматор
