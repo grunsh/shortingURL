@@ -301,10 +301,6 @@ func userURLSdelete(res http.ResponseWriter, req *http.Request) {
 		res.WriteHeader(http.StatusBadRequest)
 		return // Выход по 400 (в запросе какашки, причём без орехов)
 	}
-
-	for _, u := range tempU {
-		fmt.Println(u)
-	}
 	URLstorage.DeleteURLsBatch(tempU, userID)
 	res.WriteHeader(http.StatusAccepted)
 }
@@ -416,7 +412,6 @@ func main() {
 		"Starting server",
 		"addr", config.PRM.ServerAddress,
 	)
-	fmt.Println(URLstorage)
 	// Роутер. Регистрируем миддлвари, хендлеры и запускаемся.
 	r := chi.NewRouter()
 	r.Use(compressExchange) // Встраиваем сжиматор-разжиматор

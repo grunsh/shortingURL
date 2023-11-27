@@ -311,18 +311,18 @@ func (f *DataBase) GetURL(hash string) config.RecordURL {
 }
 
 func (f *DataBase) Ping(c context.Context) int {
-	//ps := config.PRM.DatabaseDSN
-	//db, err := sql.Open("pgx", ps)
-	//if err != nil {
-	//	fmt.Println("Косяк дб опен: ", err)
-	//	return http.StatusInternalServerError
-	//}
-	//err = db.PingContext(c)
-	//if err != nil {
-	//	fmt.Println("Косяк пинг: ", err)
-	//	return http.StatusInternalServerError
-	//}
-	//db.Close()
+	ps := config.PRM.DatabaseDSN
+	db, err := sql.Open("pgx", ps)
+	if err != nil {
+		fmt.Println("Косяк дб опен: ", err)
+		return http.StatusInternalServerError
+	}
+	err = db.PingContext(c)
+	if err != nil {
+		fmt.Println("Косяк пинг: ", err)
+		return http.StatusInternalServerError
+	}
+	db.Close()
 	return http.StatusOK
 }
 
@@ -434,14 +434,8 @@ func (f *DataBase) DeleteURLsBatch(hashes []string, UserID string) {
 					//					wg.Done()
 					return
 				}
-				//args := []interface{}{
-				//	tempVar.Hash,
-				//	tempVar.UserID,
-				//}
 				q := "update shorturl.url as u set deleted_flag = true where u.hash = $1 and u.shrt_uuid = $2"
 				tx.Exec(q, tempVar.Hash, tempVar.UserID)
-				fmt.Println("Запрос удаления: ", q, tempVar.Hash, tempVar.UserID)
-				//b.Queue("update shorturl.url as u set deleted_flag = true where u.hash = $1 and u.shrt_uuid = $2", args, []pgtype.OID{pgtype.VarcharOID, pgtype.VarcharOID}, nil)
 			}
 		}(i)
 	}
@@ -450,40 +444,12 @@ func (f *DataBase) DeleteURLsBatch(hashes []string, UserID string) {
 		fmt.Println("Набиваем канал: ", UserID, h)
 	}
 	close(hashCh)
-	fmt.Println("Закрытие тарнзакции удаления: ", tx.Commit())
-	//	wg.Wait()
-
-	//err = b.Send(context.Background(), nil)
-	//if err != nil {
-	//	fmt.Println("Отправка не сработала в батч делит", err)
-	//	tx.Rollback()
-	//}
-	//err = b.Close()
-	//if err != nil {
-	//	fmt.Println("Закрывашка батча сломалась в батч делит", err)
-	//}
-	//err = tx.Commit()
-	//if err != nil {
-	//	fmt.Println("Транзакция сломалась в батч делит", err)
-	//}
+	tx.Commit()
 }
 
 // Метод инициализации хранилища. В данном случае, оформим запросы для создания схемы и таблиц, если их нет
 
 func (f *DataBase) Open() {
-	//var c pgx.ConnPoolConfig
-	//fmt.Println("DSN: ", config.PRM.DatabaseDSN)
-	//tempC, _ := pgx.ParseDSN(config.PRM.DatabaseDSN)
-	//fmt.Println("Распарсенный конфиг БД: ", tempC)
-	//c.Host = tempC.Host
-	//fmt.Println(c.Host)
-	//c.Database = tempC.Database
-	//fmt.Println(c.Database)
-	//c.User = tempC.User
-	//fmt.Println(c.User)
-	//c.Password = tempC.Password
-	//fmt.Println(c.Password)
-	//DB, err = pgx.NewConnPool(c)
 	ps := config.PRM.DatabaseDSN
 	DB, _ = sql.Open("pgx", ps)
 	q := "CREATE SCHEMA IF NOT EXISTS shortURL"
